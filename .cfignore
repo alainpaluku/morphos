@@ -1,0 +1,11 @@
+# Fichiers à exclure du déploiement
+node_modules/
+.git/
+.env
+.env.local
+*.log
+.DS_Store
+*.md
+src/
+.vscode/
+.github/
