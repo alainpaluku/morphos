@@ -7,14 +7,14 @@ import { AIAnalysisResult } from '../types';
  */
 export const parseImageData = (imageData: string): { base64: string; mimeType: string } | null => {
   if (!imageData) return null;
-  
+
   try {
     const parts = imageData.split(',');
     if (parts.length !== 2) return null;
-    
+
     const base64Data = parts[1];
     const mimeType = parts[0].split(';')[0].split(':')[1];
-    
+
     return { base64: base64Data, mimeType };
   } catch (error) {
     return null;
@@ -26,7 +26,7 @@ export const parseImageData = (imageData: string): { base64: string; mimeType: s
  */
 export const buildGeminiContent = (textPrompt: string, imageData: string | null = null): any[] => {
   const content: any[] = [{ text: textPrompt }];
-  
+
   if (imageData) {
     const parsed = parseImageData(imageData);
     if (parsed) {
@@ -38,7 +38,7 @@ export const buildGeminiContent = (textPrompt: string, imageData: string | null 
       });
     }
   }
-  
+
   return content;
 };
 
@@ -49,7 +49,7 @@ export const parseActionResponse = (response: string, defaultPrompt: string): AI
   const actionMatch = response.match(/ACTION:\s*(CREATE|MODIFY|ADJUST)/i);
   const objectMatch = response.match(/OBJECT:\s*(.+?)(?:\n|$)/i);
   const searchMatch = response.match(/SEARCH:\s*(.+?)(?:\n|$)/i);
-  
+
   return {
     actionType: actionMatch ? actionMatch[1].toUpperCase() as 'CREATE' | 'MODIFY' | 'ADJUST' : 'CREATE',
     objectName: objectMatch ? objectMatch[1].trim() : 'object',
@@ -66,59 +66,12 @@ export const getActionMetadata = (actionType: 'CREATE' | 'MODIFY' | 'ADJUST') =>
     MODIFY: { emoji: '🔧', text: 'Modification', color: 'secondary' },
     ADJUST: { emoji: '⚙️', text: 'Ajustement', color: 'tertiary' }
   };
-  
+
   return metadata[actionType] || metadata.CREATE;
 };
 
-/**
- * Format error message based on error type
- */
-export const formatAIError = (error: unknown): { message: string; isQuotaError: boolean } => {
-  if (!(error instanceof Error)) {
-    return {
-      message: 'Une erreur est survenue lors de la génération.',
-      isQuotaError: false
-    };
-  }
-  
-  const errorMessage = error.message || '';
-  
-  // Quota errors
-  if (errorMessage.includes('429')) {
-    return {
-      message: 'Quota API dépassé. Limite gratuite atteinte (20 requêtes/jour). Veuillez réessayer plus tard ou vérifier votre plan API.',
-      isQuotaError: true
-    };
-  }
-  
-  if (errorMessage.includes('quota')) {
-    return {
-      message: 'Limite de quota atteinte. Veuillez attendre quelques secondes avant de réessayer.',
-      isQuotaError: true
-    };
-  }
-  
-  // API key errors
-  if (errorMessage.includes('API key') || errorMessage.includes('401')) {
-    return {
-      message: 'Clé API invalide ou manquante. Vérifiez votre configuration.',
-      isQuotaError: false
-    };
-  }
-  
-  // Network errors
-  if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-    return {
-      message: 'Erreur de connexion. Vérifiez votre connexion internet.',
-      isQuotaError: false
-    };
-  }
-  
-  return {
-    message: errorMessage || 'Une erreur est survenue lors de la génération.',
-    isQuotaError: false
-  };
-};
+// Re-export from errorHandler for backward compatibility
+export { formatAIError } from './errorHandler';
 
 /**
  * Build analysis prompt for action detection
@@ -158,7 +111,7 @@ export const buildCodePrompt = (
   hasImage: boolean = false
 ): string => {
   const isModification = existingCode !== null;
-  
+
   if (isModification) {
     return `GENERATE JSCAD code to modify: "${userPrompt}"
 
@@ -175,28 +128,38 @@ RULES:
 
 Return ONLY the complete JavaScript code. No markdown, no explanations.`;
   }
-  
+
   if (hasImage) {
     return `ANALYZE image and GENERATE JSCAD code for: "${userPrompt}"
 
 RULES:
-1. Identify main shape
-2. Use basic primitives (cuboid, cylinder, sphere)
-3. Estimate dimensions (mm)
-4. MINIMAL comments (only for parameters)
-5. MUST include main() function that returns geometry
+1. [ANALYSIS] First, analyze the image in detail:
+   - Identify the main shape and its components.
+   - Estimate relative dimensions (assume standard sizes if unknown, e.g., M6 screw).
+   - Determine necessary primitives (cuboid, cylinder, sphere) and boolean operations.
+2. [REFLECTION] Plan the implementation step-by-step.
+3. [CODE] Generate the JSCAD code.
 
-SYNTAX:
+FORMAT:
+You MUST use the following format:
+
+// --- ANALYSIS ---
+// [Write your analysis and thought process here]
+// [Explain dimensions and geometric approach]
+
+// --- CODE START ---
 const main = () => {
-  const width = 50;
-  const height = 30;
-  const shape = primitives.cuboid({ size: [width, height, 20] });
-  return shape;
+  // Your code here
+  // ...
 };
 
-Return ONLY JavaScript code. No markdown, no \`\`\`javascript tags, MINIMAL comments.`;
+CRITICAL:
+- The code MUST be after "// --- CODE START ---"
+- MUST include main() function that returns geometry
+- Use primitives, booleans, transforms from @jscad/modeling
+- Return ONLY the formatted text with Analysis and Code.`;
   }
-  
+
   return `GENERATE JSCAD code for: "${userPrompt}"
 
 ${specifications ? `SPECS: ${specifications}\n` : ''}

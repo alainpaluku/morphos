@@ -1,5 +1,9 @@
 // Utility functions for parameter extraction and management
 import { Parameter, ParameterCategory } from '../types';
+import { formatParameterValue as formatValue } from './formatters';
+
+// Re-export formatter for backward compatibility
+export { formatParameterValue } from './formatters';
 
 /**
  * Extract parameters from JSCAD code
@@ -154,19 +158,6 @@ export function getParameterCategory(name: string): ParameterCategory {
     color: 'text-[var(--text-secondary)]', 
     bg: 'bg-[var(--bg-tertiary)]/30' 
   };
-}
-
-/**
- * Format parameter value for display
- */
-export function formatParameterValue(value: number): string {
-  if (value < 1) {
-    return value.toFixed(2);
-  } else if (value < 10) {
-    return value.toFixed(1);
-  } else {
-    return value.toFixed(0);
-  }
 }
 
 /**

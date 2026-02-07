@@ -1,8 +1,9 @@
 // Custom hook for AI chat functionality
 import { useState, useCallback, useMemo } from 'react';
 import { CADService } from '../services/CADService';
-import { formatAIError, getActionMetadata } from '../utils/aiUtils';
-import { sanitizeInput } from '../utils/securityUtils';
+import { getActionMetadata } from '../utils/aiUtils';
+import { formatAIError } from '../utils/errorHandler';
+import { validateAndSanitizeInput } from '../utils/inputValidation';
 
 interface Message {
   role: 'user' | 'assistant' | 'error';
@@ -13,13 +14,17 @@ interface Message {
 interface UseAIChatProps {
   apiKey: string;
   currentModel?: { code: string; name: string } | null;
-  onCodeGenerated: (code: string, prompt: string) => void;
+  onCodeGenerated: (code: string, prompt: string, imageData: string | null) => void;
+  onCodeError?: (error: string, code: string, prompt: string) => void;
 }
 
-export const useAIChat = ({ apiKey, currentModel, onCodeGenerated }: UseAIChatProps) => {
+export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }: UseAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [lastPrompt, setLastPrompt] = useState<string>('');
+  const [lastGeneratedCode, setLastGeneratedCode] = useState<string>('');
+  const [lastImageData, setLastImageData] = useState<string | null>(null);
+  const [isCorrectingCode, setIsCorrectingCode] = useState<boolean>(false);
 
   // Memoize CAD service instance
   const cadService = useMemo(() => {
@@ -48,11 +53,13 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated }: UseAIChatPr
     }
 
     // Sanitize and validate input
-    const sanitizedPrompt = sanitizeInput(userPrompt);
-    if (!sanitizedPrompt) {
+    let sanitizedPrompt: string;
+    try {
+      sanitizedPrompt = validateAndSanitizeInput(userPrompt);
+    } catch (error) {
       addMessage({
         role: 'error',
-        content: '❌ Erreur: Prompt invalide ou vide.',
+        content: `❌ Erreur: ${error instanceof Error ? error.message : 'Prompt invalide'}`,
         isQuotaError: false
       });
       return;
@@ -99,6 +106,10 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated }: UseAIChatPr
         throw new Error('Le code généré ne contient pas de fonction main(). Génération invalide.');
       }
 
+      // Store for potential correction
+      setLastGeneratedCode(code);
+      setLastImageData(imageData);
+
       // Success message - ONLY ONE MESSAGE
       const { emoji, text } = getActionMetadata(actionType);
       const successSuffix = actionType !== 'CREATE' && currentModel 
@@ -110,7 +121,11 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated }: UseAIChatPr
         content: `${emoji} ${text}${successSuffix} terminé avec succès !`
       });
 
-      onCodeGenerated(code, sanitizedPrompt);
+      // Store for potential correction
+      setLastImageData(imageData);
+      
+      // Pass imageData to parent component
+      onCodeGenerated(code, sanitizedPrompt, imageData);
 
     } catch (error) {
       const { message, isQuotaError } = formatAIError(error);
@@ -141,11 +156,78 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated }: UseAIChatPr
     setMessages([]);
   }, []);
 
+  // Fonction pour corriger automatiquement le code en cas d'erreur
+  const correctCodeAutomatically = useCallback(async (
+    errorMessage: string,
+    failedCode: string,
+    originalPrompt: string,
+    imageData: string | null = null
+  ): Promise<void> => {
+    if (!cadService || isCorrectingCode) return;
+
+    setIsCorrectingCode(true);
+    addMessage({
+      role: 'assistant',
+      content: '🔧 Correction du code en cours...'
+    });
+
+    try {
+      console.log('[useAIChat] Attempting to correct code...');
+      const correctedCode = await cadService.correctCode(
+        originalPrompt,
+        failedCode,
+        errorMessage,
+        imageData
+      );
+
+      console.log('[useAIChat] Code corrected successfully');
+      
+      // Validate corrected code
+      if (!correctedCode || correctedCode.trim().length === 0) {
+        throw new Error('Le code corrigé est vide');
+      }
+
+      if (!correctedCode.includes('const main') && !correctedCode.includes('function main')) {
+        throw new Error('Le code corrigé ne contient pas de fonction main()');
+      }
+
+      // Store corrected code
+      setLastGeneratedCode(correctedCode);
+
+      // Success message
+      addMessage({
+        role: 'assistant',
+        content: '✅ Code corrigé avec succès ! Génération du modèle 3D...'
+      });
+
+      // Try to generate with corrected code (pass imageData)
+      onCodeGenerated(correctedCode, originalPrompt, imageData);
+
+    } catch (error) {
+      const { message } = formatAIError(error);
+      console.error('[useAIChat] Code correction failed:', message);
+      
+      addMessage({
+        role: 'error',
+        content: `❌ Échec de la correction automatique: ${message}`
+      });
+
+      addMessage({
+        role: 'assistant',
+        content: '💡 Conseil: Essayez de reformuler votre demande avec plus de détails ou de simplifier la forme.'
+      });
+    } finally {
+      setIsCorrectingCode(false);
+    }
+  }, [cadService, isCorrectingCode, onCodeGenerated, addMessage]);
+
   return {
     messages,
     loading,
     handleSubmit,
     retry,
-    clearMessages
+    clearMessages,
+    correctCodeAutomatically,
+    isCorrectingCode
   };
 };

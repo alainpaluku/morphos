@@ -1,6 +1,7 @@
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Icons } from '../constants/icons';
+import { LanguageSelector, ThemeToggle } from './ui';
 
 interface WelcomePageProps {
   onGetStarted: () => void;
@@ -21,42 +22,13 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
             </div>
             <span className="font-bold text-lg md:text-2xl tracking-tight">{t.welcome.title}</span>
           </div>
-          
+
           <div className="flex items-center gap-2 md:gap-3">
             {/* Language Selector */}
-            <div className="flex gap-0.5 md:gap-1 bg-[var(--bg-tertiary)] rounded-md md:rounded-lg p-0.5 md:p-1 border border-[var(--border-color)]">
-              <button
-                onClick={() => setLanguage('en')}
-                className={`px-2 md:px-3 py-1 md:py-1.5 rounded text-xs font-medium transition-all ${
-                  language === 'en'
-                    ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                EN
-              </button>
-              <button
-                onClick={() => setLanguage('fr')}
-                className={`px-2 md:px-3 py-1 md:py-1.5 rounded text-xs font-medium transition-all ${
-                  language === 'fr'
-                    ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                FR
-              </button>
-            </div>
+            <LanguageSelector size="sm" />
 
             {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-1.5 md:p-2 hover:bg-[var(--bg-tertiary)] rounded-md md:rounded-lg transition-colors border border-[var(--border-color)]"
-              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            >
-              <div className={theme === 'dark' ? 'theme-icon-sun' : 'theme-icon-moon'}>
-                {theme === 'dark' ? <Icons.Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Icons.Moon className="w-4 h-4 md:w-5 md:h-5" />}
-              </div>
-            </button>
+            <ThemeToggle size="sm" />
           </div>
         </div>
       </header>
@@ -71,15 +43,15 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
                 <Icons.Lightning className="w-3 h-3 md:w-4 md:h-4" />
                 <span className="text-xs md:text-sm font-medium">{t.welcome.tagline}</span>
               </div>
-              
+
               <h1 className="hero-title text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 tracking-tight">
                 {t.welcome.title}
               </h1>
-              
+
               <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-[var(--text-secondary)] mb-3 md:mb-4">
                 {t.welcome.subtitle}
               </p>
-              
+
               <p className="text-base md:text-xl text-[var(--text-tertiary)] mb-8 md:mb-12 max-w-2xl mx-auto lg:mx-0">
                 {t.welcome.description}
               </p>
@@ -110,7 +82,7 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
       <section className="py-12 md:py-20 px-4 md:px-6 bg-[var(--bg-secondary)]">
         <div className="max-w-6xl mx-auto">
           <h2 className="section-title text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12">{t.welcome.useCases.title}</h2>
-          
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {/* Product Designer */}
             <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl md:rounded-2xl p-4 md:p-6 hover:border-[var(--accent)] transition-all duration-300 hover:scale-105">
@@ -155,7 +127,7 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
       <section className="py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-6xl mx-auto">
           <h2 className="section-title text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12">{t.welcome.features.title}</h2>
-          
+
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
             {/* Precision */}
             <div className="text-center">
@@ -242,7 +214,7 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
       <section className="py-12 md:py-20 px-4 md:px-6 bg-[var(--bg-secondary)]">
         <div className="max-w-6xl mx-auto">
           <h2 className="section-title text-2xl md:text-3xl font-bold text-center mb-8 md:mb-12">{t.welcome.examples.title}</h2>
-          
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {/* Screw */}
             <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl p-4 hover:border-[var(--accent)] transition-all duration-300 hover:scale-105">
@@ -298,8 +270,8 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
             {language === 'fr' ? 'PRÊT À CRÉER VOS PIÈCES TECHNIQUES ?' : 'READY TO CREATE YOUR TECHNICAL PARTS?'}
           </h2>
           <p className="text-base md:text-xl text-[var(--text-secondary)] mb-6 md:mb-8">
-            {language === 'fr' 
-              ? 'Commencez gratuitement avec MORPHOS' 
+            {language === 'fr'
+              ? 'Commencez gratuitement avec MORPHOS'
               : 'Start for free with MORPHOS'}
           </p>
           <button

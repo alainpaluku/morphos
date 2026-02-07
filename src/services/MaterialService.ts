@@ -110,25 +110,25 @@ export class MaterialService {
    */
   static getMaterialInfo(material: Material): string {
     const info: string[] = [];
-    
+
     info.push(`Type: ${material.type}`);
-    
+
     if (material.properties.density) {
       info.push(`Densité: ${material.properties.density} g/cm³`);
     }
-    
+
     if (material.properties.price) {
       info.push(`Prix: ${material.properties.price} €/kg`);
     }
-    
+
     if (material.properties.recyclable !== undefined) {
       info.push(`Recyclable: ${material.properties.recyclable ? 'Oui' : 'Non'}`);
     }
-    
+
     if (material.properties.printable !== undefined) {
       info.push(`Imprimable 3D: ${material.properties.printable ? 'Oui' : 'Non'}`);
     }
-    
+
     if (material.properties.finish) {
       info.push(`Finition: ${material.properties.finish}`);
     }
@@ -157,46 +157,38 @@ export class MaterialService {
     };
 
     // Enhanced properties based on material type
+    // Note: clearcoat is only available in MeshPhysicalMaterial
     switch (material.type) {
       case 'metal':
         return {
           ...baseProps,
           metalness: Math.max(material.metalness, 0.85),
-          roughness: Math.min(material.roughness, 0.35),
-          clearcoat: 0.4,
-          clearcoatRoughness: 0.15
+          roughness: Math.min(material.roughness, 0.35)
         };
-      
+
       case 'plastic':
         return {
           ...baseProps,
           metalness: 0,
-          roughness: material.roughness * 0.9,
-          clearcoat: material.properties.finish === 'glossy' ? 0.6 : 0.1,
-          clearcoatRoughness: 0.1
+          roughness: material.roughness * 0.9
         };
-      
+
       case 'glass':
         return {
           ...baseProps,
           metalness: 0,
           roughness: 0.05,
-          transmission: 0.9,
-          thickness: 0.5,
-          ior: 1.5,
-          clearcoat: 1,
-          clearcoatRoughness: 0
+          transparent: true,
+          opacity: 0.3
         };
-      
+
       case 'wood':
         return {
           ...baseProps,
           metalness: 0,
-          roughness: 0.8,
-          clearcoat: 0.15,
-          clearcoatRoughness: 0.4
+          roughness: 0.8
         };
-      
+
       default:
         return baseProps;
     }

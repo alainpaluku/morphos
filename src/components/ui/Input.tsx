@@ -1,4 +1,5 @@
 import { InputHTMLAttributes, TextareaHTMLAttributes } from 'react';
+import { inputBaseStyles } from './styles';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -15,7 +16,7 @@ export function Input({ label, error, fullWidth, className = '', ...props }: Inp
         </label>
       )}
       <input
-        className={`px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition-fast ${fullWidth ? 'w-full' : ''} ${className}`}
+        className={`${inputBaseStyles} ${fullWidth ? 'w-full' : ''} ${className}`}
         {...props}
       />
       {error && (
@@ -40,7 +41,7 @@ export function Textarea({ label, error, fullWidth, className = '', ...props }: 
         </label>
       )}
       <textarea
-        className={`px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition-fast resize-none ${fullWidth ? 'w-full' : ''} ${className}`}
+        className={`${inputBaseStyles} resize-none ${fullWidth ? 'w-full' : ''} ${className}`}
         {...props}
       />
       {error && (

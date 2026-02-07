@@ -2,6 +2,10 @@ import { useState, ChangeEvent } from 'react';
 import * as THREE from 'three';
 import ExportService, { ExportFormat } from '../../services/ExportService';
 import { Model, GCodeSettings } from '../../types';
+import { ModalHeader } from '../ui/ModalHeader';
+import { PrimaryButton } from '../ui/PrimaryButton';
+import { modalOverlayStyles, modalContainerStyles, modalFooterStyles, panelStyles } from '../ui/styles';
+import { formatExportError } from '../../utils/errorHandler';
 
 interface ExportModalProps {
   currentModel: Model;
@@ -103,8 +107,7 @@ function ExportModal({ currentModel, stlData, geometry, onClose }: ExportModalPr
         onClose();
       }, 500);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Export failed: ${errorMessage}`);
+      alert(formatExportError(error, selectedFormat));
     } finally {
       setExporting(false);
     }
@@ -118,30 +121,19 @@ function ExportModal({ currentModel, stlData, geometry, onClose }: ExportModalPr
   );
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-[var(--bg-tertiary)] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-slideUp">
+    <div className={modalOverlayStyles}>
+      <div className={`${modalContainerStyles} max-w-2xl max-h-[90vh]`}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[var(--accent)] text-[var(--bg-primary)] rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Export Model</h2>
-              <p className="text-sm text-[var(--text-secondary)]">{currentModel?.name}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <ModalHeader
+          title="Export Model"
+          subtitle={currentModel?.name}
+          icon={
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-          </button>
-        </div>
+          }
+          onClose={onClose}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
@@ -191,7 +183,7 @@ function ExportModal({ currentModel, stlData, geometry, onClose }: ExportModalPr
 
           {/* GCODE Settings */}
           {selectedFormat === 'gcode' && (
-            <div className="bg-[var(--bg-secondary)]/50 rounded-xl p-4 border border-[var(--border-color)]">
+            <div className={panelStyles}>
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -259,7 +251,7 @@ function ExportModal({ currentModel, stlData, geometry, onClose }: ExportModalPr
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50 flex items-center justify-between">
+        <div className={modalFooterStyles}>
           <div className="text-sm text-[var(--text-secondary)]">
             {selectedFormatData && (
               <span>Export as <span className="font-mono text-[var(--text-secondary)]">{selectedFormatData.extension}</span></span>
@@ -272,25 +264,20 @@ function ExportModal({ currentModel, stlData, geometry, onClose }: ExportModalPr
             >
               Cancel
             </button>
-            <button
+            <PrimaryButton
               onClick={handleExport}
-              disabled={!canExport || exporting}
-              className="px-6 py-2 bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all font-medium flex items-center gap-2"
-            >
-              {exporting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Exporting...
-                </>
-              ) : (
-                <>
+              disabled={!canExport}
+              loading={exporting}
+              icon={
+                !exporting && (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  Export
-                </>
-              )}
-            </button>
+                )
+              }
+            >
+              {exporting ? 'Exporting...' : 'Export'}
+            </PrimaryButton>
           </div>
         </div>
       </div>

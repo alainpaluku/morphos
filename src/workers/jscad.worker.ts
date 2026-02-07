@@ -1,4 +1,4 @@
-// Simple 3D Worker - Generates basic STL without external dependencies
+// 3D Worker using @jscad/modeling for geometry generation and STL conversion
 
 interface WorkerMessage {
   code: string;
@@ -10,249 +10,257 @@ interface WorkerResponse {
   error?: string;
 }
 
-// Simple 3D primitives library
-const primitives = {
-  cuboid: ({ size }: { size: number[] }) => {
-    const [w, h, d] = size;
-    return {
-      type: 'cuboid',
-      vertices: [
-        [-w/2, -h/2, -d/2], [w/2, -h/2, -d/2], [w/2, h/2, -d/2], [-w/2, h/2, -d/2],
-        [-w/2, -h/2, d/2], [w/2, -h/2, d/2], [w/2, h/2, d/2], [-w/2, h/2, d/2]
-      ],
-      faces: [
-        [0,1,2], [0,2,3], [4,5,6], [4,6,7],
-        [0,1,5], [0,5,4], [2,3,7], [2,7,6],
-        [0,3,7], [0,7,4], [1,2,6], [1,6,5]
-      ]
-    };
-  },
-  
-  cylinder: ({ radius, height, segments = 32 }: { radius: number; height: number; segments?: number }) => {
-    const vertices: number[][] = [];
-    const faces: number[][] = [];
-    
-    // Bottom center
-    vertices.push([0, 0, 0]);
-    // Top center
-    vertices.push([0, 0, height]);
-    
-    // Bottom circle
-    for (let i = 0; i < segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      vertices.push([
-        Math.cos(angle) * radius,
-        Math.sin(angle) * radius,
-        0
-      ]);
-    }
-    
-    // Top circle
-    for (let i = 0; i < segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      vertices.push([
-        Math.cos(angle) * radius,
-        Math.sin(angle) * radius,
-        height
-      ]);
-    }
-    
-    // Bottom faces
-    for (let i = 0; i < segments; i++) {
-      faces.push([0, 2 + i, 2 + ((i + 1) % segments)]);
-    }
-    
-    // Top faces
-    for (let i = 0; i < segments; i++) {
-      faces.push([1, 2 + segments + ((i + 1) % segments), 2 + segments + i]);
-    }
-    
-    // Side faces
-    for (let i = 0; i < segments; i++) {
-      const next = (i + 1) % segments;
-      faces.push([2 + i, 2 + next, 2 + segments + i]);
-      faces.push([2 + next, 2 + segments + next, 2 + segments + i]);
-    }
-    
-    return { type: 'cylinder', vertices, faces };
-  },
-  
-  sphere: ({ radius, segments = 16 }: { radius: number; segments?: number }) => {
-    const vertices: number[][] = [];
-    const faces: number[][] = [];
-    
-    // Generate vertices
-    for (let lat = 0; lat <= segments; lat++) {
-      const theta = (lat * Math.PI) / segments;
-      const sinTheta = Math.sin(theta);
-      const cosTheta = Math.cos(theta);
-      
-      for (let lon = 0; lon <= segments; lon++) {
-        const phi = (lon * 2 * Math.PI) / segments;
-        const sinPhi = Math.sin(phi);
-        const cosPhi = Math.cos(phi);
-        
-        vertices.push([
-          radius * cosPhi * sinTheta,
-          radius * sinPhi * sinTheta,
-          radius * cosTheta
-        ]);
-      }
-    }
-    
-    // Generate faces
-    for (let lat = 0; lat < segments; lat++) {
-      for (let lon = 0; lon < segments; lon++) {
-        const first = lat * (segments + 1) + lon;
-        const second = first + segments + 1;
-        
-        faces.push([first, second, first + 1]);
-        faces.push([second, second + 1, first + 1]);
-      }
-    }
-    
-    return { type: 'sphere', vertices, faces };
-  }
+import { primitives, booleans, transforms, extrusions, hulls } from '@jscad/modeling';
+import { cuboid, cylinder, sphere } from '@jscad/modeling/src/primitives';
+import { union, subtract, intersect } from '@jscad/modeling/src/operations/booleans';
+import { translate, rotate, scale } from '@jscad/modeling/src/operations/transforms';
+import { extrudeLinear } from '@jscad/modeling/src/operations/extrusions';
+import { hull } from '@jscad/modeling/src/operations/hulls';
+import { toPolygons } from '@jscad/modeling/src/geometries/geom3';
+import type { Geom3 } from '@jscad/modeling/src/geometries/types';
+
+// Map to expected structure for the generated code
+const jscadPrimitives = {
+  cuboid: (params: any) => cuboid({ size: params.size }),
+  cube: (params: any) => cuboid({ size: params.size || [params.radius || 10, params.radius || 10, params.radius || 10] }), // Alias for AI compatibility
+  cylinder: (params: any) => cylinder({ radius: params.radius, height: params.height, segments: params.segments || 16 }),
+  sphere: (params: any) => sphere({ radius: params.radius, segments: params.segments || 12 })
 };
 
-const booleans = {
-  union: (...shapes: any[]) => {
-    const allVertices: number[][] = [];
-    const allFaces: number[][] = [];
-    let offset = 0;
-    
-    for (const shape of shapes) {
-      allVertices.push(...shape.vertices);
-      allFaces.push(...shape.faces.map((f: number[]) => f.map(i => i + offset)));
-      offset += shape.vertices.length;
+const jscadBooleans = {
+  union: (...shapes: any[]) => union(...shapes),
+  subtract: (a: any, ...b: any[]) => subtract(a, ...b),
+  intersect: (...shapes: any[]) => intersect(...shapes)
+};
+
+const jscadTransforms = {
+  translate: (offset: number[], shape: any) => translate(offset as any, shape),
+  rotate: (angles: number[], shape: any) => rotate(angles as any, shape),
+  scale: (factors: number[], shape: any) => scale(factors as any, shape)
+};
+
+const jscadExtrusions = {
+  extrudeLinear: (params: any, shape: any) => extrudeLinear({ height: params.height }, shape)
+};
+
+const jscadHulls = {
+  hull: (...shapes: any[]) => hull(...shapes)
+};
+
+/**
+ * Convert JSCAD geometry to STL binary format
+ * Creates a binary STL file from JSCAD geometry polygons
+ */
+function geometryToSTL(geometry: Geom3): ArrayBuffer {
+  const polygons = toPolygons(geometry);
+
+  if (polygons.length === 0) {
+    throw new Error('Geometry has no polygons');
+  }
+
+  // STL binary header (80 bytes)
+  const header = new Uint8Array(80);
+  header.fill(0);
+  const headerText = 'JSCAD Model';
+  for (let i = 0; i < Math.min(headerText.length, 80); i++) {
+    header[i] = headerText.charCodeAt(i);
+  }
+
+  // Count total triangles
+  let triangleCount = 0;
+  for (const polygon of polygons) {
+    const vertices = polygon.vertices;
+    // Each polygon with n vertices creates (n-2) triangles
+    if (vertices.length >= 3) {
+      triangleCount += vertices.length - 2;
     }
-    
-    return { type: 'union', vertices: allVertices, faces: allFaces };
-  },
-  
-  subtract: (a: any, b: any) => {
-    return { type: 'subtract', vertices: a.vertices, faces: a.faces };
   }
-};
 
-const transforms = {
-  translate: (offset: number[], shape: any) => {
-    return {
-      ...shape,
-      vertices: shape.vertices.map((v: number[]) => [
-        v[0] + offset[0],
-        v[1] + offset[1],
-        v[2] + offset[2]
-      ])
-    };
-  },
-  
-  rotate: (angles: number[], shape: any) => {
-    return shape;
-  },
-  
-  scale: (factors: number[], shape: any) => {
-    return {
-      ...shape,
-      vertices: shape.vertices.map((v: number[]) => [
-        v[0] * factors[0],
-        v[1] * factors[1],
-        v[2] * factors[2]
-      ])
-    };
-  }
-};
-
-const extrusions = {
-  extrudeLinear: ({ height }: { height: number }, shape: any) => {
-    return primitives.cuboid({ size: [10, 10, height] });
-  }
-};
-
-// Convert geometry to STL binary format
-function geometryToSTL(geometry: any): ArrayBuffer {
-  const { vertices, faces } = geometry;
-  const triangleCount = faces.length;
-  const bufferSize = 80 + 4 + (triangleCount * 50);
+  // STL binary format:
+  // - 80 byte header
+  // - 4 byte uint32: triangle count
+  // - For each triangle: 12 bytes normal (3x float32), 36 bytes vertices (3x 3x float32), 2 bytes attribute
+  const bufferSize = 80 + 4 + triangleCount * 50;
   const buffer = new ArrayBuffer(bufferSize);
   const view = new DataView(buffer);
-  
-  // Header (80 bytes)
-  for (let i = 0; i < 80; i++) {
-    view.setUint8(i, 0);
-  }
-  
-  // Triangle count
+  const uint8View = new Uint8Array(buffer);
+
+  // Write header
+  uint8View.set(header, 0);
+
+  // Write triangle count (little-endian)
   view.setUint32(80, triangleCount, true);
-  
-  // Triangles
+
   let offset = 84;
-  for (const face of faces) {
-    const v1 = vertices[face[0]];
-    const v2 = vertices[face[1]];
-    const v3 = vertices[face[2]];
-    
-    // Calculate normal
-    const u = [v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]];
-    const v = [v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]];
+
+  // Write triangles
+  for (const polygon of polygons) {
+    const vertices = polygon.vertices;
+    if (vertices.length < 3) continue;
+
+    // Calculate normal (using first 3 vertices)
+    const v0 = vertices[0];
+    const v1 = vertices[1];
+    const v2 = vertices[2];
+
+    const edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+    const edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+
+    // Cross product
     const normal = [
-      u[1] * v[2] - u[2] * v[1],
-      u[2] * v[0] - u[0] * v[2],
-      u[0] * v[1] - u[1] * v[0]
+      edge1[1] * edge2[2] - edge1[2] * edge2[1],
+      edge1[2] * edge2[0] - edge1[0] * edge2[2],
+      edge1[0] * edge2[1] - edge1[1] * edge2[0]
     ];
-    
+
     // Normalize
-    const len = Math.sqrt(normal[0]**2 + normal[1]**2 + normal[2]**2);
-    if (len > 0) {
-      normal[0] /= len;
-      normal[1] /= len;
-      normal[2] /= len;
+    const length = Math.sqrt(normal[0] ** 2 + normal[1] ** 2 + normal[2] ** 2);
+    if (length > 0) {
+      normal[0] /= length;
+      normal[1] /= length;
+      normal[2] /= length;
     }
-    
-    // Write normal
-    view.setFloat32(offset, normal[0], true); offset += 4;
-    view.setFloat32(offset, normal[1], true); offset += 4;
-    view.setFloat32(offset, normal[2], true); offset += 4;
-    
-    // Write vertices
-    view.setFloat32(offset, v1[0], true); offset += 4;
-    view.setFloat32(offset, v1[1], true); offset += 4;
-    view.setFloat32(offset, v1[2], true); offset += 4;
-    
-    view.setFloat32(offset, v2[0], true); offset += 4;
-    view.setFloat32(offset, v2[1], true); offset += 4;
-    view.setFloat32(offset, v2[2], true); offset += 4;
-    
-    view.setFloat32(offset, v3[0], true); offset += 4;
-    view.setFloat32(offset, v3[1], true); offset += 4;
-    view.setFloat32(offset, v3[2], true); offset += 4;
-    
-    // Attribute byte count
-    view.setUint16(offset, 0, true); offset += 2;
+
+    // Create triangles from polygon (fan triangulation)
+    for (let i = 1; i < vertices.length - 1; i++) {
+      // Write normal (3x float32)
+      view.setFloat32(offset, normal[0], true);
+      offset += 4;
+      view.setFloat32(offset, normal[1], true);
+      offset += 4;
+      view.setFloat32(offset, normal[2], true);
+      offset += 4;
+
+      // Write vertices (3x 3x float32)
+      const v0_coords = vertices[0];
+      const v1_coords = vertices[i];
+      const v2_coords = vertices[i + 1];
+
+      // Vertex 1
+      view.setFloat32(offset, v0_coords[0], true);
+      offset += 4;
+      view.setFloat32(offset, v0_coords[1], true);
+      offset += 4;
+      view.setFloat32(offset, v0_coords[2], true);
+      offset += 4;
+
+      // Vertex 2
+      view.setFloat32(offset, v1_coords[0], true);
+      offset += 4;
+      view.setFloat32(offset, v1_coords[1], true);
+      offset += 4;
+      view.setFloat32(offset, v1_coords[2], true);
+      offset += 4;
+
+      // Vertex 3
+      view.setFloat32(offset, v2_coords[0], true);
+      offset += 4;
+      view.setFloat32(offset, v2_coords[1], true);
+      offset += 4;
+      view.setFloat32(offset, v2_coords[2], true);
+      offset += 4;
+
+      // Attribute byte count (2 bytes, usually 0)
+      view.setUint16(offset, 0, true);
+      offset += 2;
+    }
   }
-  
+
   return buffer;
+}
+
+/**
+ * Validate code before execution for security
+ */
+function validateCodeSecurity(code: string): void {
+  // Check for dangerous patterns
+  const dangerousPatterns = [
+    /eval\s*\(/gi,
+    /Function\s*\(/gi,
+    /import\s+/gi,
+    /fetch\s*\(/gi,
+    /XMLHttpRequest/gi,
+    /localStorage/gi,
+    /sessionStorage/gi,
+    /document\./gi,
+    /window\./gi,
+    /self\./gi,
+    /postMessage\s*\(/gi
+  ];
+
+  for (const pattern of dangerousPatterns) {
+    if (pattern.test(code)) {
+      throw new Error(`Security violation: Dangerous pattern detected in code`);
+    }
+  }
+
+  // Check code length
+  if (code.length > 50000) {
+    throw new Error('Code too long (max 50000 characters)');
+  }
 }
 
 // Execute code
 function executeJSCAD(code: string): ArrayBuffer {
   try {
+    // Validate code security before execution
+    validateCodeSecurity(code);
+
     const executeCode = new Function(
       'primitives',
       'booleans',
       'transforms',
       'extrusions',
+      'hulls',
+      'require',
       `${code}\n\nif (typeof main !== "function") {\n  throw new Error("Code must define a main() function");\n}\nreturn main();`
     );
-    
-    const geometry = executeCode(primitives, booleans, transforms, extrusions);
-    
+
+    // Mock require to support AI-generated code that uses CommonJS imports
+    const mockRequire = (moduleName: string) => {
+      switch (moduleName) {
+        case '@jscad/modeling':
+          return {
+            primitives: jscadPrimitives,
+            booleans: jscadBooleans,
+            transforms: jscadTransforms,
+            extrusions: jscadExtrusions,
+            hulls: jscadHulls
+          };
+        default:
+          return {};
+      }
+    };
+
+    // Execute with mapped objects
+    let geometry = executeCode(jscadPrimitives, jscadBooleans, jscadTransforms, jscadExtrusions, jscadHulls, mockRequire);
+
     if (!geometry) {
       throw new Error('main() returned null or undefined');
     }
-    
-    return geometryToSTL(geometry);
+
+    // Handle array return (e.g. [cube, sphere])
+    if (Array.isArray(geometry)) {
+      if (geometry.length === 0) throw new Error('main() returned empty array');
+      // Filter out non-objects
+      geometry = geometry.filter(g => g && typeof g === 'object');
+      // Union them to create a single mesh
+      if (geometry.length > 1) {
+        try {
+          geometry = jscadBooleans.union(...geometry);
+        } catch (e) {
+          geometry = geometry[0];
+        }
+      } else {
+        geometry = geometry[0];
+      }
+    }
+
+    const stl = geometryToSTL(geometry);
+    console.log('[WORKER] STL generated:', stl.byteLength, 'bytes');
+    return stl;
   } catch (error) {
+    console.error('[WORKER] Execution error:', error);
     if (error instanceof Error) {
       throw new Error(`Execution error: ${error.message}`);
     }
@@ -263,7 +271,7 @@ function executeJSCAD(code: string): ArrayBuffer {
 // Message handler
 self.onmessage = (e: MessageEvent<WorkerMessage>): void => {
   const { code } = e.data;
-  
+
   if (!code || !code.trim()) {
     const response: WorkerResponse = {
       type: 'error',
@@ -272,7 +280,9 @@ self.onmessage = (e: MessageEvent<WorkerMessage>): void => {
     self.postMessage(response);
     return;
   }
-  
+
+  console.log('[WORKER] Processing code...');
+
   try {
     const stlData = executeJSCAD(code);
     const response: WorkerResponse = {
@@ -282,6 +292,7 @@ self.onmessage = (e: MessageEvent<WorkerMessage>): void => {
     self.postMessage(response, { transfer: [stlData] });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[WORKER] Error:', errorMessage);
     const response: WorkerResponse = {
       type: 'error',
       error: errorMessage

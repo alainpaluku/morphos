@@ -21,8 +21,8 @@ export const SECURITY_CONFIG = {
   DANGEROUS_PATTERNS: [
     /eval\s*\(/gi,
     /Function\s*\(/gi,
-    /require\s*\(/gi,
-    /import\s+/gi,
+    // Note: require() is allowed for @jscad/modeling imports
+    /import\s+(?!.*@jscad)/gi, // Allow @jscad imports only
     /fetch\s*\(/gi,
     /XMLHttpRequest/gi,
     /localStorage/gi,

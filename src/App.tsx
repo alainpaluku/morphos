@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import WelcomePage from './components/WelcomePage';
 import Sidebar from './components/layout/Sidebar';
@@ -13,7 +13,9 @@ import { Icons } from './constants/icons';
 import { generateModelName } from './utils/modelUtils';
 import { useLanguage } from './contexts/LanguageContext';
 import { useTheme } from './contexts/ThemeContext';
+import { LanguageSelector, ThemeToggle } from './components/ui';
 import { Project, Model, Material } from './types';
+import { updateModelCode, updateModelMaterial } from './utils/projectUtils';
 
 function App(): JSX.Element {
   const { t, language, setLanguage } = useLanguage();
@@ -33,6 +35,76 @@ function App(): JSX.Element {
   const [stlData, setStlData] = useState<ArrayBuffer | null>(null);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
+  
+  // Store generation context for auto-correction
+  const [generationContext, setGenerationContext] = useState<{
+    prompt: string;
+    imageData: string | null;
+  } | null>(null);
+
+  // Memoize callbacks to prevent infinite recompilation loop
+  const handleSTLGenerated = useCallback((data: ArrayBuffer) => {
+    setStlData(data);
+  }, []);
+
+  const handleGeometryGenerated = useCallback((geom: THREE.BufferGeometry) => {
+    setGeometry(geom);
+  }, []);
+
+  const handleViewportError = useCallback((errors: string[]) => {
+    if (errors.length > 0) {
+      console.error('3D Viewport errors:', errors);
+      // Could show a toast notification here
+    }
+  }, []);
+
+  const handleCompiling = useCallback((compiling: boolean) => {
+    setIsCompiling(compiling);
+  }, []);
+  
+  // Auto-correct code on error
+  const handleCodeError = useCallback(async (errorMessage: string, failedCode: string) => {
+    if (!generationContext || !currentModel || !currentProject) {
+      console.log('[App] Cannot correct: missing context');
+      return;
+    }
+    
+    console.log('[App] Code error detected, attempting automatic correction...');
+    console.log('[App] Error:', errorMessage);
+    
+    try {
+      // Use CADService directly (already imported at top)
+      const { CADService } = await import('./services/CADService');
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        console.error('[App] API key not found');
+        return;
+      }
+      
+      const cadService = new CADService(apiKey);
+      
+      const correctedCode = await cadService.correctCode(
+        generationContext.prompt,
+        failedCode,
+        errorMessage,
+        generationContext.imageData
+      );
+      
+      console.log('[App] Code corrected successfully, updating model...');
+      
+      // Update model with corrected code
+      const result = updateModelCode(currentProject, currentModel.id, correctedCode);
+      if (result) {
+        setCurrentProject(result.project);
+        setCurrentModel(result.model);
+        console.log('[App] Model updated with corrected code');
+      }
+    } catch (error) {
+      console.error('[App] Code correction failed:', error);
+      // Don't throw - just log the error
+    }
+  }, [generationContext, currentModel, currentProject]);
 
   // Load projects on mount
   useEffect(() => {
@@ -47,16 +119,16 @@ function App(): JSX.Element {
     }
   }, []);
 
-  const handleNewProject = (): void => {
+  const handleNewProject = useCallback((): void => {
     const name = prompt('Project name:');
     if (name) {
       const newProject = ProjectService.createProject(name);
-      setProjects([newProject, ...projects]);
+      setProjects(prev => [newProject, ...prev]);
       setCurrentProject(newProject);
     }
-  };
+  }, []);
 
-  const handleProjectSelect = (project: Project): void => {
+  const handleProjectSelect = useCallback((project: Project): void => {
     setCurrentProject(project);
     // Load the first model if available
     if (project.models && project.models.length > 0) {
@@ -64,16 +136,21 @@ function App(): JSX.Element {
     } else {
       setCurrentModel(null);
     }
-  };
+  }, []);
 
-  const handleModelSelect = (model: Model): void => {
+  const handleModelSelect = useCallback((model: Model): void => {
     setCurrentModel(model);
-  };
+  }, []);
 
-  const handleCodeGenerated = (code: string, prompt: string): void => {
+  const handleCodeGenerated = useCallback((code: string, prompt: string, imageData: string | null = null): void => {
+    // Store generation context for potential correction
+    setGenerationContext({ prompt, imageData });
+    
+    console.log('[App] Code generated, storing context:', { prompt: prompt.substring(0, 50), hasImage: !!imageData });
+    
     // Detect material from prompt
     const detectedMaterial = MaterialService.applyMaterialFromPrompt(prompt);
-    
+
     const model: Omit<Model, 'id' | 'createdAt'> = {
       name: generateModelName(prompt),
       code,
@@ -81,7 +158,7 @@ function App(): JSX.Element {
       stlData: null,
       material: detectedMaterial
     };
-    
+
     if (currentProject) {
       ProjectService.addModelToProject(currentProject.id, model);
       const updated = ProjectService.getProject(currentProject.id);
@@ -91,27 +168,27 @@ function App(): JSX.Element {
         setChatMinimized(true);
       }
     }
-  };
+  }, [currentProject]);
 
-  const handleMaterialChange = (material: Material): void => {
+  const handleMaterialChange = useCallback((material: Material): void => {
     if (currentModel && currentProject) {
-      const updatedModels = currentProject.models.map(m =>
-        m.id === currentModel.id ? { ...m, material } : m
-      );
-      ProjectService.updateProject(currentProject.id, { models: updatedModels });
-      setCurrentModel({ ...currentModel, material });
+      const result = updateModelMaterial(currentProject, currentModel.id, material);
+      if (result) {
+        setCurrentProject(result.project);
+        setCurrentModel(result.model);
+      }
     }
-  };
+  }, [currentModel, currentProject]);
 
-  const handleCodeSave = (newCode: string): void => {
+  const handleCodeSave = useCallback((newCode: string): void => {
     if (currentModel && currentProject) {
-      const updatedModels = currentProject.models.map(m =>
-        m.id === currentModel.id ? { ...m, code: newCode } : m
-      );
-      ProjectService.updateProject(currentProject.id, { models: updatedModels });
-      setCurrentModel({ ...currentModel, code: newCode });
+      const result = updateModelCode(currentProject, currentModel.id, newCode);
+      if (result) {
+        setCurrentProject(result.project);
+        setCurrentModel(result.model);
+      }
     }
-  };
+  }, [currentModel, currentProject]);
 
   const handleGetStarted = (): void => {
     localStorage.setItem('morphos-welcomed', 'true');
@@ -152,44 +229,12 @@ function App(): JSX.Element {
               <p className="text-xs text-[var(--text-secondary)]">{currentModel?.name || t.messages.noModel}</p>
             </div>
           </div>
-          
           <div className="flex items-center gap-2">
             {/* Language Selector */}
-            <div className="flex gap-1 bg-[var(--bg-tertiary)] rounded-lg p-1 border border-[var(--border-color)]">
-              <button
-                onClick={() => setLanguage('en')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  language === 'en'
-                    ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-                title="English"
-              >
-                EN
-              </button>
-              <button
-                onClick={() => setLanguage('fr')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  language === 'fr'
-                    ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-                title="Français"
-              >
-                FR
-              </button>
-            </div>
+            <LanguageSelector />
 
             {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
-              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            >
-              <div className={theme === 'dark' ? 'theme-icon-sun' : 'theme-icon-moon'}>
-                {theme === 'dark' ? <Icons.Sun /> : <Icons.Moon />}
-              </div>
-            </button>
+            <ThemeToggle />
 
             {isCompiling && (
               <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
@@ -197,7 +242,7 @@ function App(): JSX.Element {
                 {t.messages.compiling}
               </div>
             )}
-            
+
             <button
               onClick={() => setShowCodeModal(true)}
               disabled={!currentModel}
@@ -206,7 +251,7 @@ function App(): JSX.Element {
               <Icons.Code />
               {t.actions.code}
             </button>
-            
+
             <button
               onClick={() => setShowExportModal(true)}
               disabled={!currentModel}
@@ -224,15 +269,11 @@ function App(): JSX.Element {
             <ThreeViewport
               scadCode={currentModel.code}
               material={currentModel.material}
-              onSTLGenerated={setStlData}
-              onGeometryGenerated={setGeometry}
-              onError={(errors) => {
-                if (errors.length > 0) {
-                  console.error('3D Viewport errors:', errors);
-                  // Could show a toast notification here
-                }
-              }}
-              onCompiling={setIsCompiling}
+              onSTLGenerated={handleSTLGenerated}
+              onGeometryGenerated={handleGeometryGenerated}
+              onError={handleViewportError}
+              onCompiling={handleCompiling}
+              onCodeError={handleCodeError}
             />
           ) : (
             <div className="h-full flex items-center justify-center">
@@ -269,15 +310,15 @@ function App(): JSX.Element {
             >
               <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-75 animate-pulse-ring"></div>
               <div className="absolute inset-0 rounded-full bg-[var(--accent)] opacity-50 animate-pulse-ring" style={{ animationDelay: '1s' }}></div>
-              
+
               <div className="relative z-10">
                 <Icons.Chat className="w-7 h-7" />
               </div>
-              
+
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--accent)] rounded-full border-2 border-[var(--bg-primary)] z-20">
                 <div className="absolute inset-0 bg-[var(--accent)] rounded-full animate-ping"></div>
               </div>
-              
+
               <div className="absolute bottom-full mb-3 px-4 py-2 bg-[var(--accent)] text-[var(--bg-primary)] text-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none shadow-2xl border border-[var(--border-color)] group-hover:translate-y-0 translate-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-[var(--bg-primary)] rounded-full animate-pulse"></div>
@@ -293,7 +334,7 @@ function App(): JSX.Element {
 
           {/* Floating Chat Panel */}
           {showChat && (
-            <div 
+            <div
               className="fixed bottom-8 bg-[var(--bg-secondary)] backdrop-blur-xl rounded-2xl shadow-2xl border border-[var(--border-color)] flex flex-col z-50 animate-slideUp overflow-hidden"
               style={{
                 right: rightSidebarCollapsed ? '2rem' : '22rem',
@@ -335,11 +376,11 @@ function App(): JSX.Element {
                   </button>
                 </div>
               </div>
-              
+
               {/* Chat Content */}
               {!chatMinimized && (
                 <div className="flex-1 min-h-0">
-                  <ChatInterface 
+                  <ChatInterface
                     onCodeGenerated={handleCodeGenerated}
                     currentModel={currentModel}
                   />
@@ -351,8 +392,8 @@ function App(): JSX.Element {
       </div>
 
       {/* Right Sidebar - Parameters */}
-      <ParametersPanel 
-        currentModel={currentModel} 
+      <ParametersPanel
+        currentModel={currentModel}
         onCodeChange={handleCodeSave}
         onMaterialChange={handleMaterialChange}
         isCollapsed={rightSidebarCollapsed}

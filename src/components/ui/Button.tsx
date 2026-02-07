@@ -1,4 +1,5 @@
 import { ReactNode, ButtonHTMLAttributes } from 'react';
+import { buttonBaseStyles, buttonPrimaryStyles, buttonSecondaryStyles, buttonGhostStyles, buttonSizeSmall, buttonSizeMedium, buttonSizeLarge, iconButtonStyles } from './styles';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost';
@@ -13,23 +14,21 @@ export function Button({
   children, 
   ...props 
 }: ButtonProps) {
-  const baseClasses = 'rounded-lg font-medium flex items-center justify-center gap-2 transition-all';
-  
   const variantClasses = {
-    primary: 'bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 shadow-md',
-    secondary: 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)]/80 border border-[var(--border-color)]',
-    ghost: 'hover:bg-[var(--bg-tertiary)] transition-fast'
+    primary: buttonPrimaryStyles,
+    secondary: buttonSecondaryStyles,
+    ghost: buttonGhostStyles
   };
   
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base'
+    sm: buttonSizeSmall,
+    md: buttonSizeMedium,
+    lg: buttonSizeLarge
   };
   
   return (
     <button 
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`${buttonBaseStyles} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       {...props}
     >
       {children}
@@ -40,7 +39,7 @@ export function Button({
 export function IconButton({ className = '', children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) {
   return (
     <button 
-      className={`p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-fast ${className}`}
+      className={`${iconButtonStyles} ${className}`}
       {...props}
     >
       {children}

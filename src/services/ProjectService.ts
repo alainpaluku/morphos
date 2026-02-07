@@ -6,7 +6,13 @@ export class ProjectService {
 
   getAllProjects(): Project[] {
     const stored = localStorage.getItem(this.storageKey);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.error('Failed to parse projects from storage', e);
+      return [];
+    }
   }
 
   getProject(id: string | number): Project | undefined {
@@ -15,14 +21,14 @@ export class ProjectService {
 
   createProject(name: string, description: string = ''): Project {
     const newProject: Project = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
       description,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       models: []
     };
-    
+
     const projects = this.getAllProjects();
     projects.unshift(newProject);
     this.saveProjects(projects);
@@ -32,15 +38,15 @@ export class ProjectService {
   updateProject(id: string | number, updates: Partial<Project>): Project | null {
     const projects = this.getAllProjects();
     const index = projects.findIndex(p => p.id === id.toString());
-    
+
     if (index === -1) return null;
-    
+
     projects[index] = {
       ...projects[index],
       ...updates,
       updatedAt: new Date().toISOString()
     };
-    
+
     this.saveProjects(projects);
     return projects[index];
   }
@@ -55,13 +61,13 @@ export class ProjectService {
   addModelToProject(projectId: string | number, model: Omit<Model, 'id' | 'createdAt'>): Project | null {
     const project = this.getProject(projectId);
     if (!project) return null;
-    
+
     const newModel: Model = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       ...model,
       createdAt: new Date().toISOString()
     };
-    
+
     project.models.unshift(newModel);
     return this.updateProject(projectId, project);
   }
@@ -69,7 +75,7 @@ export class ProjectService {
   deleteModelFromProject(projectId: string | number, modelId: string | number): Project | null {
     const project = this.getProject(projectId);
     if (!project) return null;
-    
+
     project.models = project.models.filter(m => m.id !== modelId.toString());
     return this.updateProject(projectId, project);
   }
