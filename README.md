@@ -12,6 +12,10 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+[**🚀 Live Demo**](https://morphos.pages.dev)
+
+*Last updated: February 8, 2026*
+
 </div>
 
 ---
