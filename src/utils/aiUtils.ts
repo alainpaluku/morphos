@@ -212,22 +212,23 @@ const main = () => {
   return booleans.subtract(outer, transforms.translate([0, 0, wall], inner));
 };
 
-// GEAR
+// TABLE
 const main = () => {
-  const teethCount = 12;
-  const outerRadius = 25;
-  const innerRadius = 20;
-  const thickness = 5;
+  const tableTop = { width: 120, depth: 80, thickness: 5 };
+  const leg = { width: 5, height: 70 };
   
-  const base = primitives.cylinder({ radius: innerRadius, height: thickness, segments: 32 });
-  const teeth = [];
-  for (let i = 0; i < teethCount; i++) {
-    const angle = (i / teethCount) * Math.PI * 2;
-    const x = Math.cos(angle) * outerRadius;
-    const y = Math.sin(angle) * outerRadius;
-    teeth.push(transforms.translate([x, y, 0], primitives.cylinder({ radius: 3, height: thickness, segments: 16 })));
-  }
-  return booleans.union(base, ...teeth);
+  const top = primitives.cuboid({ size: [tableTop.width, tableTop.depth, tableTop.thickness] });
+  const legShape = primitives.cuboid({ size: [leg.width, leg.width, leg.height] });
+  
+  const offsetX = tableTop.width / 2 - leg.width - 5;
+  const offsetY = tableTop.depth / 2 - leg.width - 5;
+  
+  const leg1 = transforms.translate([offsetX, offsetY, -leg.height], legShape);
+  const leg2 = transforms.translate([-offsetX, offsetY, -leg.height], legShape);
+  const leg3 = transforms.translate([offsetX, -offsetY, -leg.height], legShape);
+  const leg4 = transforms.translate([-offsetX, -offsetY, -leg.height], legShape);
+  
+  return booleans.union(top, leg1, leg2, leg3, leg4);
 };
 
 CODE RULES:
