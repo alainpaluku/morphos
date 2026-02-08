@@ -1,11 +1,13 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
 import { WorkerMessage, Material } from '../types';
 import { MaterialService } from '../services/MaterialService';
 import { useTheme } from '../contexts/ThemeContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { disposeMesh, disposeMaterial, centerGeometry } from '../utils/threeUtils';
+import { formatJSCADError, JSCADErrorResult } from '../utils/errorHandler';
 
 interface ThreeViewportProps {
   scadCode: string;
@@ -38,6 +40,9 @@ function ThreeViewport({
   onCodeError
 }: ThreeViewportProps): JSX.Element {
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const [isRendering, setIsRendering] = useState<boolean>(false);
+  const [renderError, setRenderError] = useState<JSCADErrorResult | null>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -47,7 +52,7 @@ function ThreeViewport({
   const workerRef = useRef<Worker | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const debounceTimerRef = useRef<number | null>(null);
-  
+
   // Store callbacks in refs to avoid re-triggering useEffect
   const callbacksRef = useRef({
     onSTLGenerated,
@@ -55,7 +60,7 @@ function ThreeViewport({
     onError,
     onCompiling
   });
-  
+
   // Update refs when callbacks change
   useEffect(() => {
     callbacksRef.current = {
@@ -176,15 +181,15 @@ function ThreeViewport({
     // Handle resize with debouncing
     const handleResize = (): void => {
       if (!mountRef.current || !cameraRef.current || !rendererRef.current) return;
-      
+
       const width = mountRef.current.clientWidth;
       const height = mountRef.current.clientHeight;
-      
+
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(width, height);
     };
-    
+
     // Debounce resize events
     let resizeTimer: number | null = null;
     const debouncedResize = (): void => {
@@ -193,23 +198,23 @@ function ThreeViewport({
       }
       resizeTimer = window.setTimeout(handleResize, 100);
     };
-    
+
     window.addEventListener('resize', debouncedResize);
 
     return () => {
       window.removeEventListener('resize', debouncedResize);
-      
+
       // Cancel animation frame
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      
+
       // Dispose controls
       if (controlsRef.current) {
         controlsRef.current.dispose();
         controlsRef.current = null;
       }
-      
+
       // Dispose renderer
       if (rendererRef.current) {
         rendererRef.current.dispose();
@@ -218,7 +223,7 @@ function ThreeViewport({
         }
         rendererRef.current = null;
       }
-      
+
       // Clean up mesh
       if (meshRef.current) {
         disposeMesh(meshRef.current);
@@ -227,13 +232,13 @@ function ThreeViewport({
         }
         meshRef.current = null;
       }
-      
+
       // Clean up scene
       if (sceneRef.current) {
         sceneRef.current.clear();
         sceneRef.current = null;
       }
-      
+
       cameraRef.current = null;
     };
   }, []); // Initial setup only
@@ -259,6 +264,8 @@ function ThreeViewport({
     debounceTimerRef.current = window.setTimeout(() => {
       const callbacks = callbacksRef.current;
       callbacks.onCompiling(true);
+      setIsRendering(true);
+      setRenderError(null); // Clear previous errors
 
       // Terminate existing worker if it exists
       if (workerRef.current) {
@@ -278,9 +285,10 @@ function ThreeViewport({
 
         const { type, data, error } = e.data;
         console.log('[VIEWPORT] Worker message received:', type);
-        
+
         const callbacks = callbacksRef.current;
         callbacks.onCompiling(false);
+        setIsRendering(false);
 
         if (type === 'success' && data) {
           console.log('[VIEWPORT] Success! STL data size:', data.byteLength);
@@ -303,10 +311,10 @@ function ThreeViewport({
               console.log('[VIEWPORT] Updating existing mesh');
               // Dispose old resources
               disposeMesh(meshRef.current);
-              
+
               // Update geometry
               meshRef.current.geometry = geometry;
-              
+
               // Update material
               const currentMaterial = material || MaterialService.getDefaultMaterial();
               meshRef.current.material = createThreeMaterial(currentMaterial);
@@ -332,8 +340,13 @@ function ThreeViewport({
           }
         } else if (type === 'error' && error) {
           console.error('[VIEWPORT] Worker error:', error);
+
+          // Format error for user display
+          const formattedError = formatJSCADError(error);
+          setRenderError(formattedError);
+
           callbacks.onError([`Worker error: ${error}`]);
-          
+
           // Trigger code correction if callback is provided
           if (onCodeError) {
             console.log('[VIEWPORT] Triggering code correction...');
@@ -347,6 +360,12 @@ function ThreeViewport({
         console.error('[VIEWPORT] Worker error event:', error);
         const callbacks = callbacksRef.current;
         callbacks.onCompiling(false);
+        setIsRendering(false);
+
+        // Format error for user display
+        const formattedError = formatJSCADError(error.message || 'Unknown worker error');
+        setRenderError(formattedError);
+
         callbacks.onError([`Worker failed: ${error.message}`]);
       };
 
@@ -360,7 +379,7 @@ function ThreeViewport({
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
-      
+
       // Terminate worker on cleanup
       if (workerRef.current) {
         workerRef.current.terminate();
@@ -373,16 +392,86 @@ function ThreeViewport({
   useEffect(() => {
     if (meshRef.current && material) {
       const threeMaterial = createThreeMaterial(material);
-      
+
       // Dispose old material
       disposeMaterial(meshRef.current.material);
-      
+
       // Update material
       meshRef.current.material = threeMaterial;
     }
   }, [material]);
 
-  return <div ref={mountRef} className="w-full h-full" />;
+  const clearError = useCallback(() => {
+    setRenderError(null);
+  }, []);
+
+  return (
+    <div ref={mountRef} className="w-full h-full relative">
+      {/* Loading overlay */}
+      {isRendering && (
+        <div className="absolute inset-0 bg-[var(--bg-primary)]/80 backdrop-blur-sm flex items-center justify-center z-10">
+          <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-xl border border-[var(--border-color)] text-center max-w-sm">
+            {/* Animated spinner */}
+            <div className="relative w-16 h-16 mx-auto mb-4">
+              <div className="absolute inset-0 border-4 border-[var(--border-color)] rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-transparent border-t-[var(--accent)] rounded-full animate-spin"></div>
+              <div className="absolute inset-2 border-4 border-transparent border-t-[var(--accent)] rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+            </div>
+
+            {/* Messages */}
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+              {t.messages.rendering3D}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-3">
+              {t.messages.compilingJSCAD}
+            </p>
+            <p className="text-xs text-[var(--text-tertiary)]">
+              {t.messages.pleaseWaitRendering}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error overlay */}
+      {renderError && !isRendering && (
+        <div className="absolute inset-0 bg-[var(--bg-primary)]/90 backdrop-blur-sm flex items-center justify-center z-10">
+          <div className="bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-xl border border-red-500/30 text-center max-w-md mx-4">
+            {/* Error icon */}
+            <div className="w-16 h-16 mx-auto mb-4 bg-red-500/10 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            {/* Error title */}
+            <h3 className="text-lg font-bold text-red-500 mb-2">
+              ⚠️ {renderError.title}
+            </h3>
+
+            {/* Error message */}
+            <p className="text-sm text-[var(--text-primary)] mb-3">
+              {renderError.message}
+            </p>
+
+            {/* Suggestion */}
+            <div className="bg-[var(--bg-tertiary)] p-3 rounded-lg mb-4">
+              <p className="text-xs text-[var(--text-secondary)]">
+                💡 <strong>Tip:</strong> {renderError.suggestion}
+              </p>
+            </div>
+
+            {/* Dismiss button */}
+            <button
+              onClick={clearError}
+              className="px-4 py-2 bg-[var(--accent)] text-[var(--bg-primary)] rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default ThreeViewport;

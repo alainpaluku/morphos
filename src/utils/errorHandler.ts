@@ -6,6 +6,88 @@ export interface ErrorResult {
   isRetryable: boolean;
 }
 
+export interface JSCADErrorResult {
+  title: string;
+  message: string;
+  suggestion: string;
+  isRetryable: boolean;
+}
+
+/**
+ * Format JSCAD code execution errors with user-friendly messages
+ */
+export const formatJSCADError = (error: string): JSCADErrorResult => {
+  const errorLower = error.toLowerCase();
+
+  // Syntax errors
+  if (errorLower.includes('syntaxerror') || errorLower.includes('unexpected token')) {
+    return {
+      title: 'Syntax Error',
+      message: 'The generated code contains a syntax error and cannot execute.',
+      suggestion: 'Try rephrasing your request with simpler terms, or describe a more basic shape.',
+      isRetryable: true,
+    };
+  }
+
+  // Reference errors (undefined variables/functions)
+  if (errorLower.includes('referenceerror') || errorLower.includes('is not defined')) {
+    return {
+      title: 'Function Not Available',
+      message: 'The code uses a function or variable that does not exist in JSCAD.',
+      suggestion: 'Request a simpler shape using basic primitives (cube, cylinder, sphere).',
+      isRetryable: true,
+    };
+  }
+
+  // Type errors
+  if (errorLower.includes('typeerror') || errorLower.includes('cannot read properties')) {
+    return {
+      title: 'Type Error',
+      message: 'The code contains a data manipulation error.',
+      suggestion: 'Try describing dimensions more explicitly (e.g., "50mm wide, 30mm tall").',
+      isRetryable: true,
+    };
+  }
+
+  // Geometry errors
+  if (errorLower.includes('geometry') || errorLower.includes('polygon') || errorLower.includes('vertices')) {
+    return {
+      title: 'Geometry Error',
+      message: 'The generated shape has invalid or impossible geometry to compute.',
+      suggestion: 'Simplify your request or avoid very complex shapes with many details.',
+      isRetryable: true,
+    };
+  }
+
+  // Main function missing
+  if (errorLower.includes('main') && (errorLower.includes('not') || errorLower.includes('undefined'))) {
+    return {
+      title: 'Incomplete Code',
+      message: 'The generated code is incomplete or poorly formatted.',
+      suggestion: 'Rephrase your request being more specific about the desired shape.',
+      isRetryable: true,
+    };
+  }
+
+  // Worker/execution errors
+  if (errorLower.includes('worker') || errorLower.includes('timeout') || errorLower.includes('script')) {
+    return {
+      title: 'Execution Error',
+      message: 'The code took too long to execute or crashed.',
+      suggestion: 'The shape might be too complex. Try a simplified version.',
+      isRetryable: true,
+    };
+  }
+
+  // Default error
+  return {
+    title: 'Generation Error',
+    message: 'The 3D model could not be created from the generated code.',
+    suggestion: 'Rephrase your request with simpler terms or explicit dimensions.',
+    isRetryable: true,
+  };
+};
+
 /**
  * Format AI-related errors with user-friendly messages
  */

@@ -35,7 +35,7 @@ function App(): JSX.Element {
   const [stlData, setStlData] = useState<ArrayBuffer | null>(null);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [isCompiling, setIsCompiling] = useState<boolean>(false);
-  
+
   // Store generation context for auto-correction
   const [generationContext, setGenerationContext] = useState<{
     prompt: string;
@@ -61,38 +61,38 @@ function App(): JSX.Element {
   const handleCompiling = useCallback((compiling: boolean) => {
     setIsCompiling(compiling);
   }, []);
-  
+
   // Auto-correct code on error
   const handleCodeError = useCallback(async (errorMessage: string, failedCode: string) => {
     if (!generationContext || !currentModel || !currentProject) {
       console.log('[App] Cannot correct: missing context');
       return;
     }
-    
+
     console.log('[App] Code error detected, attempting automatic correction...');
     console.log('[App] Error:', errorMessage);
-    
+
     try {
       // Use CADService directly (already imported at top)
       const { CADService } = await import('./services/CADService');
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      
+
       if (!apiKey) {
         console.error('[App] API key not found');
         return;
       }
-      
+
       const cadService = new CADService(apiKey);
-      
+
       const correctedCode = await cadService.correctCode(
         generationContext.prompt,
         failedCode,
         errorMessage,
         generationContext.imageData
       );
-      
+
       console.log('[App] Code corrected successfully, updating model...');
-      
+
       // Update model with corrected code
       const result = updateModelCode(currentProject, currentModel.id, correctedCode);
       if (result) {
@@ -145,9 +145,9 @@ function App(): JSX.Element {
   const handleCodeGenerated = useCallback((code: string, prompt: string, imageData: string | null = null): void => {
     // Store generation context for potential correction
     setGenerationContext({ prompt, imageData });
-    
+
     console.log('[App] Code generated, storing context:', { prompt: prompt.substring(0, 50), hasImage: !!imageData });
-    
+
     // Detect material from prompt
     const detectedMaterial = MaterialService.applyMaterialFromPrompt(prompt);
 

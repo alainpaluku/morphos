@@ -11,6 +11,8 @@ interface Message {
   isQuotaError?: boolean;
 }
 
+export type LoadingPhase = 'analyzing' | 'generating' | null;
+
 interface UseAIChatProps {
   apiKey: string;
   currentModel?: { code: string; name: string } | null;
@@ -21,6 +23,7 @@ interface UseAIChatProps {
 export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }: UseAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>(null);
   const [lastPrompt, setLastPrompt] = useState<string>('');
   const [lastGeneratedCode, setLastGeneratedCode] = useState<string>('');
   const [lastImageData, setLastImageData] = useState<string | null>(null);
@@ -71,7 +74,8 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
     setLoading(true);
 
     try {
-      // Step 1: Analyze request (silent - no message)
+      // Step 1: Analyze request
+      setLoadingPhase('analyzing');
       const { searchQuery, actionType } = await cadService.analyzeRequest(
         sanitizedPrompt,
         imageData,
@@ -84,11 +88,12 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
         specifications = cadService.getSpecifications(searchQuery);
       }
 
-      // Step 3: Generate code (silent)
-      const existingCode = (actionType === 'MODIFY' || actionType === 'ADJUST') 
-        ? currentModel?.code 
+      // Step 3: Generate code
+      setLoadingPhase('generating');
+      const existingCode = (actionType === 'MODIFY' || actionType === 'ADJUST')
+        ? currentModel?.code
         : null;
-      
+
       const code = await cadService.generateCode(
         sanitizedPrompt,
         specifications,
@@ -112,10 +117,10 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
 
       // Success message - ONLY ONE MESSAGE
       const { emoji, text } = getActionMetadata(actionType);
-      const successSuffix = actionType !== 'CREATE' && currentModel 
-        ? ` de ${currentModel.name}` 
+      const successSuffix = actionType !== 'CREATE' && currentModel
+        ? ` de ${currentModel.name}`
         : '';
-      
+
       addMessage({
         role: 'assistant',
         content: `${emoji} ${text}${successSuffix} terminé avec succès !`
@@ -123,13 +128,13 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
 
       // Store for potential correction
       setLastImageData(imageData);
-      
+
       // Pass imageData to parent component
       onCodeGenerated(code, sanitizedPrompt, imageData);
 
     } catch (error) {
       const { message, isQuotaError } = formatAIError(error);
-      
+
       addMessage({
         role: 'error',
         content: `❌ Erreur: ${message}`,
@@ -145,6 +150,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
       }
     } finally {
       setLoading(false);
+      setLoadingPhase(null);
     }
   }, [cadService, currentModel, onCodeGenerated, addMessage]);
 
@@ -181,7 +187,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
       );
 
       console.log('[useAIChat] Code corrected successfully');
-      
+
       // Validate corrected code
       if (!correctedCode || correctedCode.trim().length === 0) {
         throw new Error('Le code corrigé est vide');
@@ -206,7 +212,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
     } catch (error) {
       const { message } = formatAIError(error);
       console.error('[useAIChat] Code correction failed:', message);
-      
+
       addMessage({
         role: 'error',
         content: `❌ Échec de la correction automatique: ${message}`
@@ -224,6 +230,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
   return {
     messages,
     loading,
+    loadingPhase,
     handleSubmit,
     retry,
     clearMessages,

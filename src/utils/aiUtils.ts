@@ -160,84 +160,84 @@ CRITICAL:
 - Return ONLY the formatted text with Analysis and Code.`;
   }
 
-  return `GENERATE JSCAD code for: "${userPrompt}"
+  return `You are a JSCAD code generator. Generate parametric 3D code for: "${userPrompt}"
 
-${specifications ? `SPECS: ${specifications}\n` : ''}
+${specifications ? `TECHNICAL SPECIFICATIONS: ${specifications}\n` : ''}
 
-CRITICAL FORMAT RULES:
+AVAILABLE JSCAD MODULES (already imported):
+- primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder, torus, polyhedron
+- booleans: union, subtract, intersect
+- transforms: translate, rotate, scale, center, align
+- extrusions: extrudeLinear, extrudeRotate
+- hulls: hull, hullChain
+
+MANDATORY OUTPUT FORMAT:
 - Return ONLY raw JavaScript code
-- NO markdown formatting
-- NO \`\`\`javascript or \`\`\` tags
-- NO explanations before or after code
-- Start directly with "const main" or "function main"
+- NO markdown (no \`\`\`javascript, no \`\`\`)
+- NO text before or after the code
+- Start with "const main = () => {" exactly
+- End with "};", nothing after
 
-EXAMPLES:
+WORKING EXAMPLES:
 
-VIS M6:
+// SCREW M6
 const main = () => {
   const shaftDiameter = 6;
   const shaftLength = 30;
   const headDiameter = 10;
   const headHeight = 4;
   
-  const shaft = primitives.cylinder({
-    radius: shaftDiameter / 2,
-    height: shaftLength,
-    segments: 32
-  });
+  const shaft = primitives.cylinder({ radius: shaftDiameter / 2, height: shaftLength, segments: 32 });
+  const head = primitives.cylinder({ radius: headDiameter / 2, height: headHeight, segments: 6 });
   
-  const head = primitives.cylinder({
-    radius: headDiameter / 2,
-    height: headHeight,
-    segments: 6
-  });
-  
-  return booleans.union(
-    shaft,
-    transforms.translate([0, 0, shaftLength], head)
-  );
+  return booleans.union(shaft, transforms.translate([0, 0, shaftLength], head));
 };
 
-CUBE:
+// CUBE
 const main = () => {
   const size = 20;
   return primitives.cuboid({ size: [size, size, size] });
 };
 
-BOÎTE:
+// BOX WITH WALLS
 const main = () => {
   const width = 50;
   const depth = 30;
   const height = 20;
-  const wallThickness = 2;
+  const wall = 2;
   
   const outer = primitives.cuboid({ size: [width, depth, height] });
-  const inner = primitives.cuboid({ 
-    size: [width - wallThickness * 2, depth - wallThickness * 2, height] 
-  });
+  const inner = primitives.cuboid({ size: [width - wall * 2, depth - wall * 2, height] });
   
-  return booleans.subtract(
-    outer,
-    transforms.translate([0, 0, wallThickness], inner)
-  );
+  return booleans.subtract(outer, transforms.translate([0, 0, wall], inner));
 };
 
-RULES:
-1. SIMPLE code - no complex details
-2. Clear parameter names
-3. MINIMAL comments (only for parameters if needed)
-4. Basic shapes (cuboid, cylinder, sphere)
-5. Basic operations (union, subtract)
-6. MUST have main() function returning geometry
-7. Parametric dimensions
-
-CRITICAL:
-✓ Must contain "const main = () => {" or "function main()"
-✓ Must use primitives, booleans, transforms, or extrusions
-✓ Must return geometry
-✓ MINIMAL or NO comments
-✓ SIMPLE and CLEAN
-✓ NO MARKDOWN FORMATTING
-
-Return ONLY JavaScript code starting with "const main" or "function main". Nothing else.`;
+// GEAR
+const main = () => {
+  const teethCount = 12;
+  const outerRadius = 25;
+  const innerRadius = 20;
+  const thickness = 5;
+  
+  const base = primitives.cylinder({ radius: innerRadius, height: thickness, segments: 32 });
+  const teeth = [];
+  for (let i = 0; i < teethCount; i++) {
+    const angle = (i / teethCount) * Math.PI * 2;
+    const x = Math.cos(angle) * outerRadius;
+    const y = Math.sin(angle) * outerRadius;
+    teeth.push(transforms.translate([x, y, 0], primitives.cylinder({ radius: 3, height: thickness, segments: 16 })));
+  }
+  return booleans.union(base, ...teeth);
 };
+
+CODE RULES:
+1. Use parametric variables at the top (dimensions in mm)
+2. Keep code simple and clean
+3. main() MUST return geometry
+4. NO comments except for section headers
+5. Use descriptive variable names
+
+GENERATE CODE NOW for: "${userPrompt}"
+Start with "const main = () => {" immediately:`;
+};
+

@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
-import { useAIChat } from '../hooks/useAIChat';
+import { useAIChat, LoadingPhase } from '../hooks/useAIChat';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Icons } from '../constants/icons';
 import QuickPrompts from './QuickPrompts';
 
@@ -10,8 +11,9 @@ interface ChatInterfaceProps {
 
 function ChatInterface({ onCodeGenerated, currentModel }: ChatInterfaceProps): JSX.Element {
   const [input, setInput] = useState<string>('');
+  const { t } = useLanguage();
 
-  const { messages, loading, handleSubmit, retry } = useAIChat({
+  const { messages, loading, loadingPhase, handleSubmit, retry } = useAIChat({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY,
     currentModel,
     onCodeGenerated
@@ -53,10 +55,10 @@ function ChatInterface({ onCodeGenerated, currentModel }: ChatInterfaceProps): J
           <div key={idx}>
             <div
               className={`p-3 rounded-lg text-sm animate-fadeIn ${msg.role === 'user'
-                  ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
-                  : msg.role === 'error'
-                    ? 'bg-[var(--bg-tertiary)] border-2 border-[var(--border-color)] text-[var(--text-primary)]'
-                    : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] mr-8'
+                ? 'bg-[var(--accent)] text-[var(--bg-primary)]'
+                : msg.role === 'error'
+                  ? 'bg-[var(--bg-tertiary)] border-2 border-[var(--border-color)] text-[var(--text-primary)]'
+                  : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] mr-8'
                 }`}
             >
               <div className="whitespace-pre-wrap">
@@ -93,15 +95,25 @@ function ChatInterface({ onCodeGenerated, currentModel }: ChatInterfaceProps): J
         ))}
 
         {loading && (
-          <div className="bg-[var(--bg-tertiary)] p-3 rounded-lg mr-8 animate-fadeIn">
-            <div className="flex items-center gap-2">
+          <div className="bg-[var(--bg-tertiary)] p-4 rounded-lg mr-8 animate-fadeIn border border-[var(--border-color)]">
+            <div className="flex items-center gap-3 mb-2">
               <div className="flex gap-1">
                 <div className="w-2 h-2 bg-[var(--accent)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                 <div className="w-2 h-2 bg-[var(--accent)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                 <div className="w-2 h-2 bg-[var(--accent)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
               </div>
-              <p className="text-sm text-[var(--text-secondary)]">Génération...</p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                {loadingPhase === 'analyzing'
+                  ? t.chat.analyzingRequest
+                  : loadingPhase === 'generating'
+                    ? t.chat.generatingCode
+                    : t.chat.generating}
+              </p>
             </div>
+            <p className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
+              <Icons.Info className="w-3 h-3" />
+              {t.chat.pleaseWaitGeneration}
+            </p>
           </div>
         )}
       </div>

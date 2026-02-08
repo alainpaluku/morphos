@@ -1,0 +1,46 @@
+MORPHOS - Proprietary License
+
+Copyright (c) 2024 Alain Paluku. All Rights Reserved.
+
+TERMS AND CONDITIONS
+
+1. DEFINITIONS
+   "Software" refers to MORPHOS and all associated source code, documentation,
+   and assets contained in this repository.
+   "Author" refers to Alain Paluku.
+
+2. GRANT OF LICENSE
+   This license grants you NO rights to use, copy, modify, merge, publish,
+   distribute, sublicense, or sell copies of the Software without explicit
+   written permission from the Author.
+
+3. RESTRICTIONS
+   You may NOT:
+   - Use the Software for any commercial or non-commercial purpose
+   - Copy or distribute the Software or any portion thereof
+   - Modify or create derivative works based on the Software
+   - Reverse engineer, decompile, or disassemble the Software
+   - Remove or modify any proprietary notices or labels on the Software
+
+4. PERMISSION REQUEST
+   To request permission to use this Software, contact the Author at:
+   - GitHub: https://github.com/alainpaluku
+   
+   Any use without prior written consent is strictly prohibited.
+
+5. INTELLECTUAL PROPERTY
+   The Software and all copies thereof are proprietary to the Author and
+   title to all copies remains with the Author. All rights in the Software
+   not specifically granted in this license are reserved to the Author.
+
+6. DISCLAIMER
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES
+   OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+7. TERMINATION
+   This license is effective until terminated. Any unauthorized use
+   automatically terminates this license without notice.
+
+For inquiries about licensing, please open an issue on the GitHub repository
+or contact the Author directly.
