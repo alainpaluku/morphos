@@ -10,36 +10,25 @@ interface QuickPrompt {
 }
 
 interface QuickPromptsProps {
-  hasModel: boolean;
   onSelect: (prompt: string) => void;
 }
 
 const CREATION_PROMPTS: QuickPrompt[] = [
-  { icon: 'Bolt', textKey: 'screw', promptEn: 'create M6 screw 30mm long', promptFr: 'créer une vis M6 de 30mm' },
-  { icon: 'Circle', textKey: 'washer', promptEn: 'create M8 washer', promptFr: 'créer une rondelle M8' },
-  { icon: 'Hexagon', textKey: 'nut', promptEn: 'create M10 nut', promptFr: 'créer un écrou M10' },
-  { icon: 'Wrench', textKey: 'gear', promptEn: 'create gear 20 teeth module 2', promptFr: 'créer un engrenage 20 dents module 2' },
-  { icon: 'Package', textKey: 'box', promptEn: 'create box 50x30x20mm', promptFr: 'créer une boîte 50x30x20mm' },
-  { icon: 'Cylinder', textKey: 'cylinder', promptEn: 'create cylinder diameter 20mm height 50mm', promptFr: 'créer un cylindre diamètre 20mm hauteur 50mm' },
+  { icon: 'Cube', textKey: 'cube', promptEn: 'create a 30mm cube', promptFr: 'créer un cube de 30mm' },
+  { icon: 'Cylinder', textKey: 'cylinder', promptEn: 'create a cylinder diameter 25mm height 40mm', promptFr: 'créer un cylindre diamètre 25mm hauteur 40mm' },
+  { icon: 'Package', textKey: 'box', promptEn: 'create a box 50x30x20mm', promptFr: 'créer une boîte 50x30x20mm' },
+  { icon: 'ViewGrid', textKey: 'table', promptEn: 'create a table 80x50cm height 75cm', promptFr: 'créer une table 80x50cm hauteur 75cm' },
+  { icon: 'Circle', textKey: 'washer', promptEn: 'create an M8 washer', promptFr: 'créer une rondelle M8' },
+  { icon: 'Hexagon', textKey: 'nut', promptEn: 'create an M10 nut', promptFr: 'créer un écrou M10' },
 ];
 
-const MODIFICATION_PROMPTS: QuickPrompt[] = [
-  { icon: 'ArrowsExpand', textKey: 'increaseSize', promptEn: 'increase all dimensions by 20%', promptFr: 'augmenter toutes les dimensions de 20%' },
-  { icon: 'ArrowsContract', textKey: 'makeThinner', promptEn: 'reduce thickness by half', promptFr: 'réduire l\'épaisseur de moitié' },
-  { icon: 'ViewGrid', textKey: 'addHoles', promptEn: 'add 4 mounting holes at corners', promptFr: 'ajouter 4 trous de fixation aux coins' },
-  { icon: 'Sparkles', textKey: 'addChamfer', promptEn: 'add chamfers on edges', promptFr: 'ajouter des chanfreins sur les bords' },
-  { icon: 'Palette', textKey: 'aluminum', promptEn: 'make it aluminum', promptFr: 'rendre en aluminium' },
-  { icon: 'Palette', textKey: 'redPlastic', promptEn: 'make it red plastic', promptFr: 'rendre en plastique rouge' },
-];
-
-function QuickPrompts({ hasModel, onSelect }: QuickPromptsProps): JSX.Element {
+function QuickPrompts({ onSelect }: QuickPromptsProps): JSX.Element {
   const { t, language } = useLanguage();
-  const prompts = hasModel ? MODIFICATION_PROMPTS : CREATION_PROMPTS;
 
   return (
     <div className="text-center py-8">
       <div className="text-[var(--text-secondary)] text-sm mb-4">
-        {hasModel ? t.messages.modifyYourModel : t.messages.describeYourModel}
+        {t.messages.describeYourModel}
       </div>
 
       {/* Quota Info */}
@@ -57,13 +46,11 @@ function QuickPrompts({ hasModel, onSelect }: QuickPromptsProps): JSX.Element {
 
       {/* Quick Prompts Grid */}
       <div className="grid grid-cols-2 gap-2">
-        {prompts.map((item, idx) => {
+        {CREATION_PROMPTS.map((item, idx) => {
           const IconComponent = Icons[item.icon];
-          const text = hasModel 
-            ? t.prompts.modify[item.textKey as keyof typeof t.prompts.modify]
-            : t.prompts.create[item.textKey as keyof typeof t.prompts.create];
+          const text = t.prompts.create[item.textKey as keyof typeof t.prompts.create];
           const prompt = language === 'fr' ? item.promptFr : item.promptEn;
-          
+
           return (
             <button
               key={idx}

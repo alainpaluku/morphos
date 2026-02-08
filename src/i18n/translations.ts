@@ -86,19 +86,30 @@ export const translations = {
       pleaseWaitGeneration: 'Please wait, this may take a few moments...',
       uploadSketch: 'Upload sketch',
       speakTo3D: 'Speak to 3D',
-      quotaInfo: 'Free API - Limit: 20 requests/day',
+      quotaInfo: 'Free API - Limit: 5 requests/day',
       quotaDesc: 'If you exceed the limit, wait 24h or use your own API key.',
       learnMore: 'Learn more'
+    },
+    // Mobile Warning
+    mobileWarning: {
+      title: 'Desktop Mode Required',
+      description: 'MORPHOS is a 3D modeling application that requires a large screen. Please use a computer or enable "Desktop Mode" in your mobile browser for the best experience.',
+      howToEnable: 'How to enable desktop mode:',
+      chrome: 'Chrome: Menu \u2192 "Desktop site"',
+      safari: 'Safari: Tap "aA" \u2192 "Request Desktop Website"',
+      firefox: 'Firefox: Menu \u2192 "Request Desktop Site"',
+      close: 'Close',
+      continueAnyway: 'Continue anyway'
     },
     // Quick prompts
     prompts: {
       create: {
-        screw: 'Create Screw',
-        washer: 'Create Washer',
-        nut: 'Create Nut',
-        gear: 'Create Gear',
+        cube: 'Create Cube',
+        cylinder: 'Create Cylinder',
         box: 'Create Box',
-        cylinder: 'Create Cylinder'
+        table: 'Create Table',
+        washer: 'Create Washer',
+        nut: 'Create Nut'
       },
       modify: {
         increaseSize: 'Increase Size',
@@ -139,7 +150,7 @@ export const translations = {
     },
     // Errors
     errors: {
-      quotaExceeded: 'API quota exceeded. Free limit reached (20 requests/day). Please try again later or check your API plan.',
+      quotaExceeded: 'API quota exceeded. Free limit reached (5 requests/day). Please try again later or check your API plan.',
       invalidApiKey: 'Invalid or missing API key. Check your configuration.',
       networkError: 'Connection error. Check your internet connection.',
       generationError: 'An error occurred during generation.',
@@ -266,19 +277,30 @@ export const translations = {
       pleaseWaitGeneration: 'Veuillez patienter, cela peut prendre quelques instants...',
       uploadSketch: 'Télécharger un croquis',
       speakTo3D: 'Parler en 3D',
-      quotaInfo: 'API Gratuite - Limite: 20 requêtes/jour',
+      quotaInfo: 'API Gratuite - Limite: 5 requêtes/jour',
       quotaDesc: 'Si vous dépassez la limite, attendez 24h ou utilisez votre propre clé API.',
       learnMore: 'En savoir plus'
+    },
+    // Mobile Warning
+    mobileWarning: {
+      title: 'Mode Bureau Requis',
+      description: 'MORPHOS est une application de modélisation 3D qui nécessite un écran large. Veuillez utiliser un ordinateur ou activer le "Mode Bureau" sur votre navigateur mobile pour une expérience optimale.',
+      howToEnable: 'Comment activer le mode bureau :',
+      chrome: 'Chrome: Menu → "Version pour ordinateur"',
+      safari: 'Safari: Touchez "aA" → "Voir la version ordinateur"',
+      firefox: 'Firefox: Menu → "Site pour ordinateur"',
+      close: 'Fermer',
+      continueAnyway: 'Continuer quand même'
     },
     // Quick prompts
     prompts: {
       create: {
-        screw: 'Créer Vis',
-        washer: 'Créer Rondelle',
-        nut: 'Créer Écrou',
-        gear: 'Créer Engrenage',
+        cube: 'Créer Cube',
+        cylinder: 'Créer Cylindre',
         box: 'Créer Boîte',
-        cylinder: 'Créer Cylindre'
+        table: 'Créer Table',
+        washer: 'Créer Rondelle',
+        nut: 'Créer Écrou'
       },
       modify: {
         increaseSize: 'Augmenter Taille',
@@ -319,7 +341,7 @@ export const translations = {
     },
     // Errors
     errors: {
-      quotaExceeded: 'Quota API dépassé. Limite gratuite atteinte (20 requêtes/jour). Veuillez réessayer plus tard ou vérifier votre plan API.',
+      quotaExceeded: 'Quota API dépassé. Limite gratuite atteinte (5 requêtes/jour). Veuillez réessayer plus tard ou vérifier votre plan API.',
       invalidApiKey: 'Clé API invalide ou manquante. Vérifiez votre configuration.',
       networkError: 'Erreur de connexion. Vérifiez votre connexion internet.',
       generationError: 'Une erreur est survenue lors de la génération.',

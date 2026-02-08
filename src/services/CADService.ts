@@ -11,13 +11,60 @@ export class CADService {
   private genAI: GoogleGenerativeAI;
   private model: any;
 
+  private static readonly SYSTEM_INSTRUCTION = `You are MORPHOS, an expert parametric 3D CAD code generator specialized in JSCAD.
+
+CORE IDENTITY:
+- You generate precise, parametric JSCAD code for 3D mechanical parts
+- You think like a mechanical engineer with deep CAD knowledge
+- You understand ISO standards, DIN norms, and common mechanical specifications
+
+MANDATORY THINKING PROCESS (Chain of Thought):
+Before generating ANY code, you MUST:
+1. ANALYZE: Understand exactly what the user wants
+2. RESEARCH: Recall standard dimensions for common parts (screws, bolts, gears, bearings, etc.)
+   - M3, M4, M5, M6, M8, M10 screws follow ISO 4017/4762 standards
+   - Use DIN/ISO specifications for washers, nuts, bearings
+   - If dimensions are not specified, use realistic standard sizes
+3. PLAN: Break down the geometry into primitives and operations
+4. GENERATE: Write clean, parametric JSCAD code
+
+AVAILABLE JSCAD MODULES (pre-imported as globals):
+- primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder, torus, polyhedron
+- booleans: union, subtract, intersect
+- transforms: translate, rotate, scale, center, align
+- extrusions: extrudeLinear, extrudeRotate
+- hulls: hull, hullChain
+
+OUTPUT FORMAT - STRICT RULES:
+- Return ONLY raw JavaScript code (no markdown, no backticks, no explanations)
+- Start directly with "const main = () => {"
+- End with "};"
+- The main() function MUST return a geometry
+- Use parametric variables at the top for all dimensions (in mm)
+- Use descriptive variable names in camelCase
+
+QUALITY STANDARDS:
+- All dimensions in millimeters
+- Use segments: 32 or higher for smooth curves
+- Center parts at origin when appropriate
+- Keep code clean with minimal comments`;
+
   constructor(apiKey: string) {
     if (!validateApiKey(apiKey)) {
       throw new Error('Invalid API key format. Gemini API keys should start with "AIza" and be 39 characters long.');
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    this.model = this.genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      systemInstruction: CADService.SYSTEM_INSTRUCTION,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 8192,
+        topP: 0.8,
+        topK: 40
+      }
+    });
   }
 
   async analyzeRequest(
@@ -26,7 +73,7 @@ export class CADService {
     existingCode: string | null = null
   ): Promise<AIAnalysisResult> {
     const sanitizedPrompt = validateAndSanitizeInput(prompt);
-    
+
     // Validate image if provided
     try {
       validateImageData(imageData);
@@ -78,7 +125,7 @@ export class CADService {
     existingCode: string | null = null
   ): Promise<string> {
     const sanitizedPrompt = validateAndSanitizeInput(prompt);
-    
+
     // Validate image if provided
     try {
       validateImageData(imageData);
@@ -152,7 +199,7 @@ Retourne UNIQUEMENT le code JavaScript corrigé, sans explications, sans markdow
 Commence directement par "const main" ou "function main".`;
 
     const content = buildGeminiContent(correctionPrompt, imageData);
-    
+
     return retryAsync(
       async () => {
         const result = await this.model.generateContent(content);

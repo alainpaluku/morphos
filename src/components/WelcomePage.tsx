@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Icons } from '../constants/icons';
@@ -10,9 +11,67 @@ interface WelcomePageProps {
 function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const [showMobileWarning, setShowMobileWarning] = useState(false);
+
+  const handleGetStarted = () => {
+    // Detect if screen is mobile-sized (less than 1024px)
+    if (window.innerWidth < 1024) {
+      setShowMobileWarning(true);
+    } else {
+      onGetStarted();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-y-auto">
+      {/* Mobile Warning Modal */}
+      {showMobileWarning && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-6 max-w-md w-full shadow-2xl animate-fadeIn">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-xl flex items-center justify-center">
+                <Icons.Alert className="w-6 h-6 text-[var(--text-primary)]" />
+              </div>
+              <h3 className="text-lg font-bold">{t.mobileWarning.title}</h3>
+            </div>
+
+            <p className="text-[var(--text-secondary)] mb-6">
+              {t.mobileWarning.description}
+            </p>
+
+            <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] mb-2 font-medium">
+                <Icons.Info className="w-4 h-4" />
+                <span>{t.mobileWarning.howToEnable}</span>
+              </div>
+              <ul className="text-xs text-[var(--text-tertiary)] space-y-1 ml-6">
+                <li>• {t.mobileWarning.chrome}</li>
+                <li>• {t.mobileWarning.safari}</li>
+                <li>• {t.mobileWarning.firefox}</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowMobileWarning(false)}
+                className="flex-1 px-4 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] rounded-lg font-medium transition-all"
+              >
+                {t.mobileWarning.close}
+              </button>
+              <button
+                onClick={() => {
+                  setShowMobileWarning(false);
+                  onGetStarted();
+                }}
+                className="flex-1 px-4 py-3 bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 rounded-lg font-medium transition-all"
+              >
+                {t.mobileWarning.continueAnyway}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header with Language & Theme */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[var(--bg-secondary)]/95 backdrop-blur-xl border-b border-[var(--border-color)]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
@@ -57,7 +116,7 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
               </p>
 
               <button
-                onClick={onGetStarted}
+                onClick={handleGetStarted}
                 className="px-6 md:px-8 py-3 md:py-4 bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 rounded-xl font-semibold text-base md:text-lg transition-all duration-200 shadow-2xl hover:scale-105 inline-flex items-center gap-2 md:gap-3"
               >
                 {t.welcome.getStarted}
@@ -275,7 +334,7 @@ function WelcomePage({ onGetStarted }: WelcomePageProps): JSX.Element {
               : 'Start for free with MORPHOS'}
           </p>
           <button
-            onClick={onGetStarted}
+            onClick={handleGetStarted}
             className="px-8 md:px-10 py-4 md:py-5 bg-[var(--accent)] text-[var(--bg-primary)] hover:opacity-90 rounded-xl font-bold text-lg md:text-xl transition-all duration-200 shadow-2xl hover:scale-105 inline-flex items-center gap-2 md:gap-3"
           >
             {t.welcome.getStarted}

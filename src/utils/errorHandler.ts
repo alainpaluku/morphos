@@ -105,7 +105,7 @@ export const formatAIError = (error: unknown): ErrorResult => {
   // Quota errors (429)
   if (errorMessage.includes('429')) {
     return {
-      message: 'Quota API dépassé. Limite gratuite atteinte (20 requêtes/jour). Veuillez réessayer plus tard ou vérifier votre plan API.',
+      message: 'Quota API dépassé. Limite gratuite atteinte (5 requêtes/jour). Veuillez réessayer plus tard ou vérifier votre plan API.',
       isQuotaError: true,
       isRetryable: true,
     };
