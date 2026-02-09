@@ -9,6 +9,7 @@ import ExportModal from './components/modals/ExportModal';
 import ParametersPanel from './components/layout/ParametersPanel';
 import ProjectService from './services/ProjectService';
 import { MaterialService } from './services/MaterialService';
+import { CADService } from './services/CADService';
 import { Icons } from './constants/icons';
 import { generateModelName } from './utils/modelUtils';
 import { useLanguage } from './contexts/LanguageContext';
@@ -73,8 +74,6 @@ function App(): JSX.Element {
     console.log('[App] Error:', errorMessage);
 
     try {
-      // Use CADService directly (already imported at top)
-      const { CADService } = await import('./services/CADService');
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
       if (!apiKey) {

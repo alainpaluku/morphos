@@ -6,7 +6,8 @@
     "dev": "node scripts/dev.js",
     "dev:direct": "vite --port 5174",
     "build": "vite build",
-    "preview": "vite preview --port 5174"
+    "preview": "vite preview --port 5174",
+    "test:ai-config": "node scripts/test-ai-config.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

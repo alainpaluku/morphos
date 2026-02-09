@@ -34,6 +34,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
     try {
       return new CADService(apiKey);
     } catch (error) {
+      console.error('[useAIChat] Failed to initialize CAD service:', error);
       return null;
     }
   }, [apiKey]);

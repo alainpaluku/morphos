@@ -6,10 +6,12 @@ import { sanitizeGeneratedCode } from '../utils/securityUtils';
 import { buildGeminiContent, parseActionResponse, buildAnalysisPrompt, buildCodePrompt } from '../utils/aiUtils';
 import { validateAndSanitizeInput, validateImageData, validateGeneratedCode } from '../utils/inputValidation';
 import { retryAsync } from '../utils/retryUtils';
+import { AI_CONFIG, getModelName, isValidModel } from '../config/aiConfig';
 
 export class CADService {
   private genAI: GoogleGenerativeAI;
   private model: any;
+  private modelName: string;
 
   private static readonly SYSTEM_INSTRUCTION = `You are MORPHOS, an expert parametric 3D CAD code generator specialized in JSCAD.
 
@@ -49,22 +51,39 @@ QUALITY STANDARDS:
 - Center parts at origin when appropriate
 - Keep code clean with minimal comments`;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, modelName?: string) {
     if (!validateApiKey(apiKey)) {
       throw new Error('Invalid API key format. Gemini API keys should start with "AIza" and be 39 characters long.');
     }
 
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
-      systemInstruction: CADService.SYSTEM_INSTRUCTION,
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8192,
-        topP: 0.8,
-        topK: 40
-      }
-    });
+    // Use provided model or get from config
+    this.modelName = modelName || getModelName();
+
+    // Validate model name
+    if (!isValidModel(this.modelName)) {
+      console.warn(`[CADService] Invalid model "${this.modelName}", falling back to default`);
+      this.modelName = AI_CONFIG.DEFAULT_MODEL;
+    }
+
+    try {
+      this.genAI = new GoogleGenerativeAI(apiKey);
+      this.model = this.genAI.getGenerativeModel({
+        model: this.modelName,
+        systemInstruction: CADService.SYSTEM_INSTRUCTION,
+        generationConfig: AI_CONFIG.GENERATION_CONFIG
+      });
+      console.log(`[CADService] ✓ Initialized with model: ${this.modelName}`);
+    } catch (error) {
+      console.error('[CADService] Failed to initialize Gemini model:', error);
+      throw new Error(`Failed to initialize AI model "${this.modelName}". Please check your API key and model name.`);
+    }
+  }
+
+  /**
+   * Get the current model name
+   */
+  getModelName(): string {
+    return this.modelName;
   }
 
   async analyzeRequest(
@@ -164,7 +183,7 @@ QUALITY STANDARDS:
         console.log('[CADService] Code validated successfully');
         return code;
       },
-      { maxAttempts: 2, delayMs: 1000 }
+      AI_CONFIG.RETRY_CONFIG
     );
   }
 
@@ -218,7 +237,7 @@ Commence directement par "const main" ou "function main".`;
         validateGeneratedCode(code);
         return code;
       },
-      { maxAttempts: 2, delayMs: 1000 }
+      AI_CONFIG.RETRY_CONFIG
     );
   }
 }

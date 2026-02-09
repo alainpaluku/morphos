@@ -65,10 +65,32 @@ Open http://localhost:5174 in your browser.
 Create a `.env` file in the root directory:
 
 ```env
+# Gemini API Configuration
 VITE_GEMINI_API_KEY=your_gemini_api_key
+
+# Optional: Specify Gemini model (default: gemini-2.5-flash)
+# FREE MODELS (February 2026):
+# - gemini-3-flash (Latest, best speed/quality balance)
+# - gemini-2.5-pro (Complex reasoning)
+# - gemini-2.5-flash (Recommended for CAD - DEFAULT)
+# - gemini-2.5-flash-lite (High throughput, cost-effective)
+# - gemini-2.0-flash (Multimodal, agents)
+# - gemini-1.5-flash (Stable, proven)
+# - gemini-1.5-flash-8b (Lightweight)
+VITE_GEMINI_MODEL=gemini-2.5-flash
 ```
 
 Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
+
+**Model Selection (All FREE):**
+- `gemini-3-flash`: Latest model, best speed/quality balance ⚡⭐⭐⭐⭐
+- `gemini-2.5-flash`: **Recommended for CAD generation** (default) ⚡⚡⭐⭐⭐⭐
+- `gemini-2.5-pro`: Maximum quality for complex models 🐢⭐⭐⭐⭐⭐
+- `gemini-2.5-flash-lite`: High throughput, cost-effective ⚡⚡⚡⭐⭐⭐
+- `gemini-2.0-flash`: Great for multimodal and agents ⚡⚡⭐⭐⭐⭐
+- `gemini-1.5-flash`: Stable and proven ⚡⚡⭐⭐⭐
+
+**Note:** Gemini 3 Pro is NOT available in the free tier.
 
 ---
 
