@@ -147,20 +147,27 @@ src/
 
 ### Cloudflare Pages
 
+**Option 1 : Via GitHub (Recommandé)**
+
+1. Connecter votre repository sur [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Configurer le build :
+   - Build command: `npm run build`
+   - Build output: `dist`
+   - Environment variables:
+     - `VITE_GEMINI_API_KEY` : Votre clé API
+     - `VITE_GEMINI_MODEL` : `gemini-2.5-flash` (optionnel)
+
+**Option 2 : Via CLI**
+
 ```bash
-# Build the project
+# Build le projet
 npm run build
 
-# Deploy to Cloudflare
+# Déployer sur Cloudflare Pages
 npx wrangler pages deploy ./dist --project-name=morphos
 ```
 
-Or connect your GitHub repository directly in the [Cloudflare Dashboard](https://dash.cloudflare.com/).
-
-**Build settings:**
-- Build command: `npm run build`
-- Build output: `dist`
-- Environment variable: `VITE_GEMINI_API_KEY`
+📖 **Guide complet** : Voir [cloudflare-deploy.md](cloudflare-deploy.md) pour les instructions détaillées.
 
 ---
 
