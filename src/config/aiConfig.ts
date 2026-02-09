@@ -1,7 +1,7 @@
 // AI Configuration - Simplified
 export const AI_CONFIG = {
-  // Single free model - Gemini 3 Flash (best free model available)
-  MODEL: 'gemini-3-flash',
+  // Single free model - Gemini 1.5 Flash (stable and reliable)
+  MODEL: 'gemini-1.5-flash',
 
   // Generation parameters
   GENERATION_CONFIG: {

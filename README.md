@@ -71,7 +71,7 @@ VITE_GEMINI_API_KEY=your_gemini_api_key
 
 Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
 
-**Model Used:** Gemini 3 Flash (free, best performance)
+**Model Used:** Gemini 1.5 Flash (free, stable and reliable)
 
 ---
 
