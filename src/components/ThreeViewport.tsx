@@ -81,12 +81,12 @@ function ThreeViewport({
     scene.background = new THREE.Color(bgColor);
     sceneRef.current = scene;
 
-    // Camera
+    // Camera with better clipping planes for large objects
     const camera = new THREE.PerspectiveCamera(
       75,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
-      0.1,
-      1000
+      0.01,  // Near plane - closer to see small details
+      10000  // Far plane - much further to see large objects
     );
     camera.position.set(50, 50, 50);
     cameraRef.current = camera;
@@ -109,18 +109,18 @@ function ThreeViewport({
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    // Main directional light with shadows - brighter
+    // Main directional light with shadows - brighter and larger coverage
     const mainLight = new THREE.DirectionalLight(0xffffff, 1.8);
     mainLight.position.set(50, 80, 50);
     mainLight.castShadow = true;
     mainLight.shadow.mapSize.width = 2048;
     mainLight.shadow.mapSize.height = 2048;
-    mainLight.shadow.camera.near = 0.5;
-    mainLight.shadow.camera.far = 500;
-    mainLight.shadow.camera.left = -100;
-    mainLight.shadow.camera.right = 100;
-    mainLight.shadow.camera.top = 100;
-    mainLight.shadow.camera.bottom = -100;
+    mainLight.shadow.camera.near = 0.1;
+    mainLight.shadow.camera.far = 1000;
+    mainLight.shadow.camera.left = -500;
+    mainLight.shadow.camera.right = 500;
+    mainLight.shadow.camera.top = 500;
+    mainLight.shadow.camera.bottom = -500;
     scene.add(mainLight);
 
     // Fill light
@@ -305,6 +305,31 @@ function ThreeViewport({
             // Center geometry
             centerGeometry(geometry);
             console.log('[VIEWPORT] Geometry centered');
+
+            // Calculate bounding box for auto-zoom
+            geometry.computeBoundingBox();
+            const boundingBox = geometry.boundingBox;
+            if (boundingBox && cameraRef.current && controlsRef.current) {
+              const size = new THREE.Vector3();
+              boundingBox.getSize(size);
+              const maxDim = Math.max(size.x, size.y, size.z);
+              const fov = cameraRef.current.fov * (Math.PI / 180);
+              let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+              cameraZ *= 2.5; // Add some padding
+              
+              const center = new THREE.Vector3();
+              boundingBox.getCenter(center);
+              
+              cameraRef.current.position.set(
+                center.x + cameraZ * 0.5,
+                center.y + cameraZ * 0.5,
+                center.z + cameraZ
+              );
+              controlsRef.current.target.copy(center);
+              controlsRef.current.update();
+              
+              console.log('[VIEWPORT] Camera adjusted for object size:', maxDim);
+            }
 
             // Update Scene
             if (meshRef.current) {
