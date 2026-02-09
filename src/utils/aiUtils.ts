@@ -160,48 +160,37 @@ CRITICAL:
 - Return ONLY the formatted text with Analysis and Code.`;
   }
 
-  return `You are a JSCAD code generator. Generate parametric 3D code for: "${userPrompt}"
+  return `Generate JSCAD code for: "${userPrompt}"
 
-${specifications ? `TECHNICAL SPECIFICATIONS: ${specifications}\n` : ''}
+${specifications ? `SPECS: ${specifications}\n` : ''}
 
-AVAILABLE JSCAD MODULES (already imported):
-- primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder, torus, polyhedron
+AVAILABLE:
+- primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder
 - booleans: union, subtract, intersect
-- transforms: translate, rotate, scale, center, align
-- extrusions: extrudeLinear, extrudeRotate
-- hulls: hull, hullChain
+- transforms: translate, rotate, scale
 
-CRITICAL RULES:
-1. Return ONLY raw JavaScript code (no markdown, no backticks, no explanations)
-2. Start with "const main = () => {" exactly
-3. End with "};" and nothing after
-4. The main() function MUST return a geometry (never return null or undefined)
-5. Use simple, working code - avoid complex operations that might fail
-6. All dimensions in millimeters
-7. Use segments: 32 for smooth curves
+EXAMPLES:
 
-SIMPLE WORKING EXAMPLES:
-
-// CUBE (simplest example)
+Cube:
 const main = () => {
   const size = 20;
   return primitives.cuboid({ size: [size, size, size] });
 };
 
-// CYLINDER
+Cylinder:
 const main = () => {
   const radius = 10;
   const height = 30;
   return primitives.cylinder({ radius, height, segments: 32 });
 };
 
-// SPHERE
+Sphere:
 const main = () => {
   const radius = 15;
   return primitives.sphere({ radius, segments: 32 });
 };
 
-// BOX WITH ROUNDED CORNERS
+Box with rounded corners:
 const main = () => {
   const width = 50;
   const depth = 30;
@@ -210,7 +199,7 @@ const main = () => {
   return primitives.roundedCuboid({ size: [width, depth, height], roundRadius, segments: 16 });
 };
 
-// SIMPLE SCREW
+Simple screw:
 const main = () => {
   const shaftRadius = 3;
   const shaftHeight = 30;
@@ -224,34 +213,13 @@ const main = () => {
   return booleans.union(shaft, headTranslated);
 };
 
-// BOX WITH HOLLOW INTERIOR
-const main = () => {
-  const width = 50;
-  const depth = 30;
-  const height = 20;
-  const wallThickness = 2;
-  
-  const outer = primitives.cuboid({ size: [width, depth, height] });
-  const inner = primitives.cuboid({ size: [width - wallThickness * 2, depth - wallThickness * 2, height] });
-  const innerTranslated = transforms.translate([0, 0, wallThickness], inner);
-  
-  return booleans.subtract(outer, innerTranslated);
+RULES:
+- Return ONLY code (no markdown, no backticks)
+- Start with: const main = () => {
+- End with: };
+- main() MUST return a geometry
+- Use millimeters
+- Keep it simple
+
+Generate code for: "${userPrompt}"`;
 };
-
-IMPORTANT TIPS FOR SUCCESS:
-- Keep it simple - complex operations often fail
-- Always return a geometry from main()
-- Use clear variable names
-- Test with basic shapes first
-- Avoid nested operations when possible
-- Use translate before union/subtract
-
-NOW GENERATE CODE for: "${userPrompt}"
-
-Remember:
-- Start with "const main = () => {"
-- Return a geometry
-- End with "};"
-- NO markdown, NO explanations, ONLY code
-};
-

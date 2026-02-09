@@ -27,10 +27,10 @@ export const AI_CONFIG = {
 
   // Generation parameters
   GENERATION_CONFIG: {
-    temperature: 0.2,      // Low temperature for consistent code generation
+    temperature: 0.7,      // Higher temperature for better creativity and understanding
     maxOutputTokens: 8192, // Maximum tokens in response
-    topP: 0.8,            // Nucleus sampling parameter
-    topK: 40              // Top-k sampling parameter
+    topP: 0.95,           // Higher for more diverse outputs
+    topK: 64              // Higher for better variety
   },
 
   // Retry configuration
