@@ -6,12 +6,11 @@ import { sanitizeGeneratedCode } from '../utils/securityUtils';
 import { buildGeminiContent, parseActionResponse, buildAnalysisPrompt, buildCodePrompt } from '../utils/aiUtils';
 import { validateAndSanitizeInput, validateImageData, validateGeneratedCode } from '../utils/inputValidation';
 import { retryAsync } from '../utils/retryUtils';
-import { AI_CONFIG, getModelName, isValidModel } from '../config/aiConfig';
+import { AI_CONFIG } from '../config/aiConfig';
 
 export class CADService {
   private genAI: GoogleGenerativeAI;
   private model: any;
-  private modelName: string;
 
   private static readonly SYSTEM_INSTRUCTION = `You are MORPHOS, an expert 3D CAD code generator for JSCAD.
 
@@ -54,39 +53,23 @@ IMPORTANT:
 - Use clear variable names
 - Test with basic shapes first`;
 
-  constructor(apiKey: string, modelName?: string) {
+  constructor(apiKey: string) {
     if (!validateApiKey(apiKey)) {
       throw new Error('Invalid API key format. Gemini API keys should start with "AIza" and be 39 characters long.');
-    }
-
-    // Use provided model or get from config
-    this.modelName = modelName || getModelName();
-
-    // Validate model name
-    if (!isValidModel(this.modelName)) {
-      console.warn(`[CADService] Invalid model "${this.modelName}", falling back to default`);
-      this.modelName = AI_CONFIG.DEFAULT_MODEL;
     }
 
     try {
       this.genAI = new GoogleGenerativeAI(apiKey);
       this.model = this.genAI.getGenerativeModel({
-        model: this.modelName,
+        model: AI_CONFIG.MODEL,
         systemInstruction: CADService.SYSTEM_INSTRUCTION,
         generationConfig: AI_CONFIG.GENERATION_CONFIG
       });
-      console.log(`[CADService] ✓ Initialized with model: ${this.modelName}`);
+      console.log(`[CADService] ✓ Initialized with model: ${AI_CONFIG.MODEL}`);
     } catch (error) {
       console.error('[CADService] Failed to initialize Gemini model:', error);
-      throw new Error(`Failed to initialize AI model "${this.modelName}". Please check your API key and model name.`);
+      throw new Error(`Failed to initialize AI model. Please check your API key.`);
     }
-  }
-
-  /**
-   * Get the current model name
-   */
-  getModelName(): string {
-    return this.modelName;
   }
 
   async analyzeRequest(
