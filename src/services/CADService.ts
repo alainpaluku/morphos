@@ -185,7 +185,9 @@ IMPORTANT:
     const sanitizedPrompt = validateAndSanitizeInput(originalPrompt);
     validateImageData(imageData);
 
-    const correctionPrompt = `Le code JSCAD suivant a échoué avec l'erreur: "${errorMessage}"
+    const correctionPrompt = `CORRECTION DE CODE JSCAD
+
+ERREUR: "${errorMessage}"
 
 CODE QUI A ÉCHOUÉ:
 \`\`\`javascript
@@ -194,14 +196,26 @@ ${failedCode}
 
 DEMANDE ORIGINALE: "${sanitizedPrompt}"
 
-CORRIGE le code pour qu'il fonctionne correctement. Le code doit:
-1. Être syntaxiquement correct
-2. Utiliser uniquement les fonctions JSCAD disponibles (primitives, booleans, transforms, extrusions, hulls)
-3. Contenir une fonction main() qui retourne une géométrie
-4. Ne pas utiliser de fonctions non disponibles
+INSTRUCTIONS:
+1. Analyse l'erreur et identifie le problème
+2. Corrige le code en utilisant UNIQUEMENT:
+   - primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder
+   - booleans: union, subtract, intersect
+   - transforms: translate, rotate, scale
+3. Le code DOIT:
+   - Commencer par: const main = () => {
+   - Retourner une géométrie valide
+   - Être syntaxiquement correct
+   - Utiliser des dimensions en millimètres
 
-Retourne UNIQUEMENT le code JavaScript corrigé, sans explications, sans markdown, sans \`\`\`javascript.
-Commence directement par "const main" ou "function main".`;
+EXEMPLE DE CODE CORRECT:
+const main = () => {
+  const size = 20;
+  return primitives.cuboid({ size: [size, size, size] });
+};
+
+RETOURNE UNIQUEMENT LE CODE CORRIGÉ (pas de markdown, pas d'explications).
+Commence directement par "const main":`;
 
     const content = buildGeminiContent(correctionPrompt, imageData);
 

@@ -70,8 +70,8 @@ function App(): JSX.Element {
       return;
     }
 
-    console.log('[App] Code error detected, attempting automatic correction...');
-    console.log('[App] Error:', errorMessage);
+    console.log('[App] 🔧 Erreur détectée, correction automatique en cours...');
+    console.log('[App] Erreur:', errorMessage);
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -83,6 +83,8 @@ function App(): JSX.Element {
 
       const cadService = new CADService(apiKey);
 
+      console.log('[App] 🤖 Demande de correction à l\'IA...');
+      
       const correctedCode = await cadService.correctCode(
         generationContext.prompt,
         failedCode,
@@ -90,18 +92,19 @@ function App(): JSX.Element {
         generationContext.imageData
       );
 
-      console.log('[App] Code corrected successfully, updating model...');
+      console.log('[App] ✅ Code corrigé avec succès, mise à jour du modèle...');
 
       // Update model with corrected code
       const result = updateModelCode(currentProject, currentModel.id, correctedCode);
       if (result) {
         setCurrentProject(result.project);
         setCurrentModel(result.model);
-        console.log('[App] Model updated with corrected code');
+        console.log('[App] ✅ Modèle mis à jour avec le code corrigé');
       }
     } catch (error) {
-      console.error('[App] Code correction failed:', error);
-      // Don't throw - just log the error
+      console.error('[App] ❌ Échec de la correction automatique:', error);
+      // Show user-friendly error message
+      alert('La correction automatique a échoué. Veuillez reformuler votre demande avec des termes plus simples.');
     }
   }, [generationContext, currentModel, currentProject]);
 
