@@ -12,7 +12,7 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[**🚀 Live Demo**](https://morphos.pages.dev)
+[**Live Demo**](https://morphos.pages.dev)
 
 *Last updated: February 8, 2026*
 
@@ -83,12 +83,12 @@ VITE_GEMINI_MODEL=gemini-2.5-flash
 Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
 
 **Model Selection (All FREE):**
-- `gemini-3-flash`: Latest model, best speed/quality balance ⚡⭐⭐⭐⭐
-- `gemini-2.5-flash`: **Recommended for CAD generation** (default) ⚡⚡⭐⭐⭐⭐
-- `gemini-2.5-pro`: Maximum quality for complex models 🐢⭐⭐⭐⭐⭐
-- `gemini-2.5-flash-lite`: High throughput, cost-effective ⚡⚡⚡⭐⭐⭐
-- `gemini-2.0-flash`: Great for multimodal and agents ⚡⚡⭐⭐⭐⭐
-- `gemini-1.5-flash`: Stable and proven ⚡⚡⭐⭐⭐
+- `gemini-3-flash`: Latest model, best speed/quality balance
+- `gemini-2.5-flash`: Recommended for CAD generation (default)
+- `gemini-2.5-pro`: Maximum quality for complex models
+- `gemini-2.5-flash-lite`: High throughput, cost-effective
+- `gemini-2.0-flash`: Great for multimodal and agents
+- `gemini-1.5-flash`: Stable and proven
 
 **Note:** Gemini 3 Pro is NOT available in the free tier.
 
@@ -147,27 +147,25 @@ src/
 
 ### Cloudflare Pages
 
-**Option 1 : Via GitHub (Recommandé)**
+**Option 1: Via GitHub (Recommended)**
 
-1. Connecter votre repository sur [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Configurer le build :
+1. Connect your repository on [Cloudflare Dashboard](https://dash.cloudflare.com/)
+2. Configure build settings:
    - Build command: `npm run build`
    - Build output: `dist`
    - Environment variables:
-     - `VITE_GEMINI_API_KEY` : Votre clé API
-     - `VITE_GEMINI_MODEL` : `gemini-2.5-flash` (optionnel)
+     - `VITE_GEMINI_API_KEY`: Your API key
+     - `VITE_GEMINI_MODEL`: `gemini-2.5-flash` (optional)
 
-**Option 2 : Via CLI**
+**Option 2: Via CLI**
 
 ```bash
-# Build le projet
+# Build the project
 npm run build
 
-# Déployer sur Cloudflare Pages
+# Deploy to Cloudflare Pages
 npx wrangler pages deploy ./dist --project-name=morphos
 ```
-
-📖 **Guide complet** : Voir [cloudflare-deploy.md](cloudflare-deploy.md) pour les instructions détaillées.
 
 ---
 
