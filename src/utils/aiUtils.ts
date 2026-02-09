@@ -171,74 +171,87 @@ AVAILABLE JSCAD MODULES (already imported):
 - extrusions: extrudeLinear, extrudeRotate
 - hulls: hull, hullChain
 
-MANDATORY OUTPUT FORMAT:
-- Return ONLY raw JavaScript code
-- NO markdown (no \`\`\`javascript, no \`\`\`)
-- NO text before or after the code
-- Start with "const main = () => {" exactly
-- End with "};", nothing after
+CRITICAL RULES:
+1. Return ONLY raw JavaScript code (no markdown, no backticks, no explanations)
+2. Start with "const main = () => {" exactly
+3. End with "};" and nothing after
+4. The main() function MUST return a geometry (never return null or undefined)
+5. Use simple, working code - avoid complex operations that might fail
+6. All dimensions in millimeters
+7. Use segments: 32 for smooth curves
 
-WORKING EXAMPLES:
+SIMPLE WORKING EXAMPLES:
 
-// SCREW M6
-const main = () => {
-  const shaftDiameter = 6;
-  const shaftLength = 30;
-  const headDiameter = 10;
-  const headHeight = 4;
-  
-  const shaft = primitives.cylinder({ radius: shaftDiameter / 2, height: shaftLength, segments: 32 });
-  const head = primitives.cylinder({ radius: headDiameter / 2, height: headHeight, segments: 6 });
-  
-  return booleans.union(shaft, transforms.translate([0, 0, shaftLength], head));
-};
-
-// CUBE
+// CUBE (simplest example)
 const main = () => {
   const size = 20;
   return primitives.cuboid({ size: [size, size, size] });
 };
 
-// BOX WITH WALLS
+// CYLINDER
+const main = () => {
+  const radius = 10;
+  const height = 30;
+  return primitives.cylinder({ radius, height, segments: 32 });
+};
+
+// SPHERE
+const main = () => {
+  const radius = 15;
+  return primitives.sphere({ radius, segments: 32 });
+};
+
+// BOX WITH ROUNDED CORNERS
 const main = () => {
   const width = 50;
   const depth = 30;
   const height = 20;
-  const wall = 2;
+  const roundRadius = 2;
+  return primitives.roundedCuboid({ size: [width, depth, height], roundRadius, segments: 16 });
+};
+
+// SIMPLE SCREW
+const main = () => {
+  const shaftRadius = 3;
+  const shaftHeight = 30;
+  const headRadius = 5;
+  const headHeight = 4;
+  
+  const shaft = primitives.cylinder({ radius: shaftRadius, height: shaftHeight, segments: 32 });
+  const head = primitives.cylinder({ radius: headRadius, height: headHeight, segments: 32 });
+  const headTranslated = transforms.translate([0, 0, shaftHeight], head);
+  
+  return booleans.union(shaft, headTranslated);
+};
+
+// BOX WITH HOLLOW INTERIOR
+const main = () => {
+  const width = 50;
+  const depth = 30;
+  const height = 20;
+  const wallThickness = 2;
   
   const outer = primitives.cuboid({ size: [width, depth, height] });
-  const inner = primitives.cuboid({ size: [width - wall * 2, depth - wall * 2, height] });
+  const inner = primitives.cuboid({ size: [width - wallThickness * 2, depth - wallThickness * 2, height] });
+  const innerTranslated = transforms.translate([0, 0, wallThickness], inner);
   
-  return booleans.subtract(outer, transforms.translate([0, 0, wall], inner));
+  return booleans.subtract(outer, innerTranslated);
 };
 
-// TABLE
-const main = () => {
-  const tableTop = { width: 120, depth: 80, thickness: 5 };
-  const leg = { width: 5, height: 70 };
-  
-  const top = primitives.cuboid({ size: [tableTop.width, tableTop.depth, tableTop.thickness] });
-  const legShape = primitives.cuboid({ size: [leg.width, leg.width, leg.height] });
-  
-  const offsetX = tableTop.width / 2 - leg.width - 5;
-  const offsetY = tableTop.depth / 2 - leg.width - 5;
-  
-  const leg1 = transforms.translate([offsetX, offsetY, -leg.height], legShape);
-  const leg2 = transforms.translate([-offsetX, offsetY, -leg.height], legShape);
-  const leg3 = transforms.translate([offsetX, -offsetY, -leg.height], legShape);
-  const leg4 = transforms.translate([-offsetX, -offsetY, -leg.height], legShape);
-  
-  return booleans.union(top, leg1, leg2, leg3, leg4);
-};
+IMPORTANT TIPS FOR SUCCESS:
+- Keep it simple - complex operations often fail
+- Always return a geometry from main()
+- Use clear variable names
+- Test with basic shapes first
+- Avoid nested operations when possible
+- Use translate before union/subtract
 
-CODE RULES:
-1. Use parametric variables at the top (dimensions in mm)
-2. Keep code simple and clean
-3. main() MUST return geometry
-4. NO comments except for section headers
-5. Use descriptive variable names
+NOW GENERATE CODE for: "${userPrompt}"
 
-GENERATE CODE NOW for: "${userPrompt}"
-Start with "const main = () => {" immediately:`;
+Remember:
+- Start with "const main = () => {"
+- Return a geometry
+- End with "};"
+- NO markdown, NO explanations, ONLY code
 };
 

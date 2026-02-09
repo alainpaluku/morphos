@@ -112,7 +112,7 @@ function ParametersPanel({
   // No model selected
   if (!currentModel) {
     return (
-      <div className={`${isCollapsed ? 'w-16' : 'w-80'} bg-[var(--bg-secondary)] border-l border-[var(--border-color)] flex flex-col transition-all duration-300`}>
+      <div className={`${isCollapsed ? 'w-16' : 'w-80'} bg-[var(--bg-secondary)] border-l border-[var(--border-color)] flex flex-col transition-all duration-300 flex-shrink-0`}>
         <div className="flex-1 flex items-center justify-center">
           <ExpandButton onClick={onToggleCollapse} />
         </div>
@@ -122,7 +122,7 @@ function ParametersPanel({
 
   // Main render
   return (
-    <div className={`${isCollapsed ? 'w-0' : 'w-80'} bg-[var(--bg-secondary)] border-l border-[var(--border-color)] flex flex-col transition-all duration-300 overflow-hidden`}>
+    <div className={`${isCollapsed ? 'w-0' : 'w-80'} bg-[var(--bg-secondary)] border-l border-[var(--border-color)] flex flex-col transition-all duration-300 overflow-hidden flex-shrink-0`}>
       
       {/* HEADER */}
       {!isCollapsed && (

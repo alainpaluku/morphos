@@ -38,7 +38,7 @@ function Sidebar({
 
   return (
     <>
-      <div className={`${isCollapsed ? 'w-16' : 'w-72'} bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col transition-all duration-300`}>
+      <div className={`${isCollapsed ? 'w-16' : 'w-72'} bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col transition-all duration-300 flex-shrink-0`}>
         {/* Logo & Toggle */}
         <div className="p-4 border-b border-[var(--border-color)]/50">
           {isCollapsed ? (
