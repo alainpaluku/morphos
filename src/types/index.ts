@@ -1,10 +1,13 @@
 // Type definitions for Morphos
 
+export type AppMode = '2D' | '3D';
+
 export interface Project {
   id: string;
   name: string;
   description?: string;
   models: Model[];
+  mode: AppMode;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,7 +17,11 @@ export interface Model {
   name: string;
   code: string;
   prompt: string;
+  mode: AppMode;
   stlData?: ArrayBuffer | null;
+  stepData?: ArrayBuffer | null;
+  svgData?: string | null;
+  dxfData?: string | null;
   createdAt: string;
   parameters?: Parameter[];
   material?: Material;
@@ -79,8 +86,19 @@ export interface GCodeSettings {
 }
 
 export interface WorkerMessage {
+  code: string;
+  mode: AppMode;
+}
+
+export interface WorkerResponse {
   type: 'success' | 'error';
-  data?: ArrayBuffer;
+  data?: {
+    stl?: ArrayBuffer;
+    step?: ArrayBuffer;
+    svg?: string;
+    dxf?: string;
+    meshes?: any[]; // For Three.js rendering
+  };
   error?: string;
 }
 
@@ -88,6 +106,7 @@ export interface AIAnalysisResult {
   actionType: 'CREATE' | 'MODIFY' | 'ADJUST';
   objectName: string;
   searchQuery: string;
+  suggestedMode?: AppMode;
 }
 
 export type IconComponent = React.FC<{ className?: string }>;

@@ -16,17 +16,19 @@ export type LoadingPhase = 'analyzing' | 'generating' | null;
 interface UseAIChatProps {
   apiKey: string;
   currentModel?: { code: string; name: string } | null;
-  onCodeGenerated: (code: string, prompt: string, imageData: string | null) => void;
+  onCodeGenerated: (code: string, prompt: string, imageData: string | null, mode: '2D' | '3D') => void;
   onCodeError?: (error: string, code: string, prompt: string) => void;
+  initialMode?: '2D' | '3D';
 }
 
-export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }: UseAIChatProps) => {
+export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError, initialMode = '3D' }: UseAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase>(null);
   const [lastPrompt, setLastPrompt] = useState<string>('');
   const [lastGeneratedCode, setLastGeneratedCode] = useState<string>('');
   const [lastImageData, setLastImageData] = useState<string | null>(null);
+  const [lastMode, setLastMode] = useState<'2D' | '3D'>('3D');
   const [isCorrectingCode, setIsCorrectingCode] = useState<boolean>(false);
 
   // Memoize CAD service instance
@@ -45,7 +47,8 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
 
   const handleSubmit = useCallback(async (
     userPrompt: string,
-    imageData: string | null = null
+    imageData: string | null = null,
+    overrideMode?: '2D' | '3D'
   ): Promise<void> => {
     if (!cadService) {
       addMessage({
@@ -77,11 +80,13 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
     try {
       // Step 1: Analyze request
       setLoadingPhase('analyzing');
-      const { searchQuery, actionType } = await cadService.analyzeRequest(
+      const { searchQuery, actionType, suggestedMode } = await cadService.analyzeRequest(
         sanitizedPrompt,
         imageData,
         currentModel?.code
       );
+
+      const finalMode = overrideMode || suggestedMode || initialMode;
 
       // Step 2: Get specifications (only for CREATE, silent)
       let specifications: string | null = null;
@@ -99,7 +104,8 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
         sanitizedPrompt,
         specifications,
         imageData,
-        existingCode
+        existingCode,
+        finalMode
       );
 
       // Step 4: Validate generated code
@@ -115,6 +121,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
       // Store for potential correction
       setLastGeneratedCode(code);
       setLastImageData(imageData);
+      setLastMode(finalMode);
 
       // Success message - ONLY ONE MESSAGE
       const { emoji, text } = getActionMetadata(actionType);
@@ -130,8 +137,8 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
       // Store for potential correction
       setLastImageData(imageData);
 
-      // Pass imageData to parent component
-      onCodeGenerated(code, sanitizedPrompt, imageData);
+      // Pass imageData and mode to parent component
+      onCodeGenerated(code, sanitizedPrompt, imageData, finalMode);
 
     } catch (error) {
       const { message, isQuotaError } = formatAIError(error);
@@ -208,7 +215,7 @@ export const useAIChat = ({ apiKey, currentModel, onCodeGenerated, onCodeError }
       });
 
       // Try to generate with corrected code (pass imageData)
-      onCodeGenerated(correctedCode, originalPrompt, imageData);
+      onCodeGenerated(correctedCode, originalPrompt, imageData, lastMode);
 
     } catch (error) {
       const { message } = formatAIError(error);

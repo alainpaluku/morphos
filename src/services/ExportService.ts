@@ -18,9 +18,23 @@ export interface ExportFormat {
 export class ExportService {
 
   static exportSTL(stlData: ArrayBuffer, filename: string): void {
-    validateExportData('stl', stlData, null, null);
     const blob = new Blob([stlData], { type: 'application/octet-stream' });
     this.downloadBlob(blob, `${filename}.stl`);
+  }
+
+  static exportSTEP(stepData: ArrayBuffer, filename: string): void {
+    const blob = new Blob([stepData], { type: 'application/step' });
+    this.downloadBlob(blob, `${filename}.step`);
+  }
+
+  static exportSVG(svgData: string, filename: string): void {
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    this.downloadBlob(blob, `${filename}.svg`);
+  }
+
+  static exportDXF(dxfData: string, filename: string): void {
+    const blob = new Blob([dxfData], { type: 'application/dxf' });
+    this.downloadBlob(blob, `${filename}.dxf`);
   }
 
   static exportOBJ(geometry: THREE.BufferGeometry, filename: string): void {
@@ -123,7 +137,26 @@ M84 ; Disable motors
     URL.revokeObjectURL(url);
   }
 
-  static getAvailableFormats(): ExportFormat[] {
+  static getAvailableFormats(mode: '2D' | '3D' = '3D'): ExportFormat[] {
+    if (mode === '2D') {
+      return [
+        {
+          id: 'svg',
+          name: 'SVG',
+          description: 'Scalable Vector Graphics',
+          icon: 'svg',
+          extension: '.svg'
+        },
+        {
+          id: 'dxf',
+          name: 'DXF',
+          description: 'AutoCAD DXF format for CNC',
+          icon: 'dxf',
+          extension: '.dxf'
+        }
+      ];
+    }
+
     return [
       {
         id: 'stl',
@@ -134,37 +167,28 @@ M84 ; Disable motors
         requiresSTL: true
       },
       {
+        id: 'step',
+        name: 'STEP',
+        description: 'Professional CAD format',
+        icon: 'step',
+        extension: '.step'
+      },
+      {
         id: 'obj',
         name: 'OBJ',
         description: 'Wavefront OBJ format',
         icon: 'obj',
         extension: '.obj',
         requiresGeometry: true
-      },
-      {
-        id: '3mf',
-        name: '3MF',
-        description: '3D Manufacturing Format',
-        icon: '3mf',
-        extension: '.3mf',
-        requiresSTL: true
-      },
-      {
-        id: 'gcode',
-        name: 'GCODE',
-        description: 'G-code for 3D printers',
-        icon: 'gcode',
-        extension: '.gcode',
-        requiresGeometry: true,
-        needsSettings: true
-      },
-      {
-        id: 'jscad',
-        name: 'JSCAD',
-        description: 'Source code',
-        icon: 'jscad',
-        extension: '.jscad',
-        requiresCode: true
+        },
+        {
+          id: 'gcode',
+          name: 'GCODE',
+          description: 'G-code for 3D printers',
+          icon: 'gcode',
+          extension: '.gcode',
+          requiresGeometry: true,
+          needsSettings: true
       }
     ];
   }

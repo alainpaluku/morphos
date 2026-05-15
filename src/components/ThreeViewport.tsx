@@ -2,17 +2,23 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader';
-import { WorkerMessage, Material } from '../types';
 import { MaterialService } from '../services/MaterialService';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { disposeMesh, disposeMaterial, centerGeometry } from '../utils/threeUtils';
-import { formatJSCADError, JSCADErrorResult } from '../utils/errorHandler';
+import { formatCADError, CADErrorResult } from '../utils/errorHandler';
+
+import { Project, Model, WorkerMessage, Material } from '../types';
 
 interface ThreeViewportProps {
   scadCode: string;
+  mode?: '2D' | '3D';
+  currentModel?: Model | null;
   material?: Material | null;
   onSTLGenerated: (data: ArrayBuffer) => void;
+  onSTEPGenerated?: (data: ArrayBuffer) => void;
+  onSVGGenerated?: (data: string) => void;
+  onDXFGenerated?: (data: string) => void;
   onGeometryGenerated: (geometry: THREE.BufferGeometry) => void;
   onError: (errors: string[]) => void;
   onCompiling: (isCompiling: boolean) => void;
@@ -32,8 +38,13 @@ const createThreeMaterial = (mat: Material): THREE.MeshStandardMaterial => {
 
 function ThreeViewport({
   scadCode,
+  mode = '3D',
+  currentModel,
   material,
   onSTLGenerated,
+  onSTEPGenerated,
+  onSVGGenerated,
+  onDXFGenerated,
   onGeometryGenerated,
   onError,
   onCompiling,
@@ -42,7 +53,7 @@ function ThreeViewport({
   const { theme } = useTheme();
   const { t } = useLanguage();
   const [isRendering, setIsRendering] = useState<boolean>(false);
-  const [renderError, setRenderError] = useState<JSCADErrorResult | null>(null);
+  const [renderError, setRenderError] = useState<CADErrorResult | null>(null);
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -275,12 +286,12 @@ function ThreeViewport({
 
       // Create new worker for each compilation
       const worker = new Worker(
-        new URL('../workers/jscad.worker.ts', import.meta.url),
+        new URL('../workers/cad.worker.ts', import.meta.url),
         { type: 'module' }
       );
       workerRef.current = worker;
 
-      worker.onmessage = (e: MessageEvent<WorkerMessage>): void => {
+      worker.onmessage = (e: MessageEvent<any>): void => {
         if (worker !== workerRef.current) return;
 
         const { type, data, error } = e.data;
@@ -291,12 +302,31 @@ function ThreeViewport({
         setIsRendering(false);
 
         if (type === 'success' && data) {
-          console.log('[VIEWPORT] Success! STL data size:', data.byteLength);
           try {
-            const loader = new STLLoader();
-            console.log('[VIEWPORT] Parsing STL...');
-            const geometry = loader.parse(data);
-            console.log('[VIEWPORT] STL parsed, vertices:', geometry.attributes.position.count);
+            let geometry: THREE.BufferGeometry;
+
+            if (mode === '3D' && data.meshes && data.meshes.length > 0) {
+              // Replicad meshes
+              geometry = new THREE.BufferGeometry();
+              const meshData = data.meshes[0];
+              geometry.setAttribute('position', new THREE.Float32BufferAttribute(meshData.positions, 3));
+              geometry.setAttribute('normal', new THREE.Float32BufferAttribute(meshData.normals, 3));
+              if (meshData.indices) {
+                geometry.setIndex(new THREE.Uint32BufferAttribute(meshData.indices, 1));
+              }
+            } else if (mode === '3D' && data.stl) {
+              const loader = new STLLoader();
+              geometry = loader.parse(data.stl);
+            } else if (mode === '2D' && data.svg) {
+              // For 2D, we could render the SVG as a plane texture or using ShapeGeometry
+              // For now, let's just create a dummy geometry or similar
+              // In a real app, you'd use SVGLoader
+              geometry = new THREE.PlaneGeometry(100, 100);
+              console.log('[VIEWPORT] 2D SVG generated, rendering placeholder');
+              // Store SVG data somewhere if needed
+            } else {
+              throw new Error('No valid geometry data received');
+            }
 
             if (callbacks.onGeometryGenerated) {
               callbacks.onGeometryGenerated(geometry);
@@ -355,7 +385,10 @@ function ThreeViewport({
               console.log('[VIEWPORT] Mesh added to scene');
             }
 
-            callbacks.onSTLGenerated(data);
+            if (data.stl) callbacks.onSTLGenerated(data.stl);
+            if (data.step && onSTEPGenerated) onSTEPGenerated(data.step);
+            if (data.svg && onSVGGenerated) onSVGGenerated(data.svg);
+            if (data.dxf && onDXFGenerated) onDXFGenerated(data.dxf);
             callbacks.onError([]);
             console.log('[VIEWPORT] Rendering complete!');
           } catch (err) {
@@ -367,7 +400,7 @@ function ThreeViewport({
           console.error('[VIEWPORT] Worker error:', error);
 
           // Format error for user display
-          const formattedError = formatJSCADError(error);
+          const formattedError = formatCADError(error);
           setRenderError(formattedError);
 
           callbacks.onError([`Worker error: ${error}`]);
@@ -388,14 +421,14 @@ function ThreeViewport({
         setIsRendering(false);
 
         // Format error for user display
-        const formattedError = formatJSCADError(error.message || 'Unknown worker error');
+        const formattedError = formatCADError(error.message || 'Unknown worker error');
         setRenderError(formattedError);
 
         callbacks.onError([`Worker failed: ${error.message}`]);
       };
 
-      console.log('[VIEWPORT] Posting code to worker, length:', scadCode.length);
-      worker.postMessage({ code: scadCode });
+      console.log('[VIEWPORT] Posting code to worker, mode:', mode);
+      worker.postMessage({ code: scadCode, mode });
     }, 100); // 100ms debounce - optimized for faster rendering
 
     return () => {
@@ -432,6 +465,16 @@ function ThreeViewport({
 
   return (
     <div ref={mountRef} className="w-full h-full relative">
+      {/* 2D Overlay */}
+      {mode === '2D' && currentModel?.svgData && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8 z-20">
+          <div
+            className="w-full h-full bg-white shadow-inner rounded-lg overflow-auto p-4 pointer-events-auto"
+            dangerouslySetInnerHTML={{ __html: currentModel.svgData }}
+          />
+        </div>
+      )}
+
       {/* Loading overlay */}
       {isRendering && (
         <div className="absolute inset-0 bg-[var(--bg-primary)]/80 backdrop-blur-sm flex items-center justify-center z-10">

@@ -12,46 +12,44 @@ export class CADService {
   private genAI: GoogleGenerativeAI;
   private model: any;
 
-  private static readonly SYSTEM_INSTRUCTION = `You are MORPHOS, an expert 3D CAD code generator for JSCAD.
+  private static readonly SYSTEM_INSTRUCTION = `You are MORPHOS, an expert CAD code generator.
+You can generate 3D models using Replicad (OpenCascade) and 2D drawings using Makerjs.
 
 YOUR MISSION:
-Generate clean, working JSCAD code that creates 3D models from user descriptions.
+Generate clean, working JavaScript code based on the requested mode (2D or 3D).
 
-AVAILABLE FUNCTIONS (already imported):
-- primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder
-- booleans: union, subtract, intersect
-- transforms: translate, rotate, scale
+--- 3D MODE (REPLICAD) ---
+Library 'replicad' is available.
+Key functions:
+- makeBox(width, height, depth), makeCylinder(radius, height), makeSphere(radius)
+- draw().rect(w, h).extrude(d)
+- fuse(shape1, shape2), cut(shape1, shape2), common(shape1, shape2)
+- shape.translate([x, y, z]), shape.rotate(angle, [axis]), shape.scale(factor)
+
+Example 3D:
+const main = () => {
+  const { makeBox } = replicad;
+  return makeBox(20, 20, 20);
+};
+
+--- 2D MODE (MAKERJS) ---
+Library 'makerjs' is available.
+Key functions:
+- new makerjs.models.Rectangle(width, height)
+- new makerjs.models.Oval(width, height)
+- makerjs.model.combineUnion(a, b), makerjs.model.combineSubtraction(a, b)
+
+Example 2D:
+const main = () => {
+  return new makerjs.models.Rectangle(100, 50);
+};
 
 RULES:
-1. Return ONLY JavaScript code (no markdown, no explanations)
+1. Return ONLY JavaScript code.
 2. Start with: const main = () => {
 3. End with: };
-4. main() MUST return a geometry
-5. Use millimeters for dimensions
-6. Use segments: 32 for smooth curves
-
-EXAMPLES:
-
-Cube:
-const main = () => {
-  return primitives.cuboid({ size: [20, 20, 20] });
-};
-
-Cylinder:
-const main = () => {
-  return primitives.cylinder({ radius: 10, height: 30, segments: 32 });
-};
-
-Sphere:
-const main = () => {
-  return primitives.sphere({ radius: 15, segments: 32 });
-};
-
-IMPORTANT:
-- Keep it simple
-- Always return a geometry
-- Use clear variable names
-- Test with basic shapes first`;
+4. Use millimeters.
+5. Always return the model/shape from main().`;
 
   constructor(apiKey: string) {
     if (!validateApiKey(apiKey)) {
@@ -127,7 +125,8 @@ IMPORTANT:
     prompt: string,
     specifications: string | null,
     imageData: string | null = null,
-    existingCode: string | null = null
+    existingCode: string | null = null,
+    mode: '2D' | '3D' = '3D'
   ): Promise<string> {
     const sanitizedPrompt = validateAndSanitizeInput(prompt);
 
@@ -143,7 +142,7 @@ IMPORTANT:
     }
 
     const hasImage = imageData !== null;
-    const codePrompt = buildCodePrompt(sanitizedPrompt, specifications, existingCode, hasImage);
+    const codePrompt = buildCodePrompt(sanitizedPrompt, specifications, existingCode, hasImage, mode);
     const content = buildGeminiContent(codePrompt, imageData);
 
     console.log('[CADService] Generating code, hasImage:', hasImage);
