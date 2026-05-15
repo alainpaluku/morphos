@@ -5,22 +5,36 @@ import { Icons } from '../constants/icons';
 import QuickPrompts from './QuickPrompts';
 
 interface ChatInterfaceProps {
-  onCodeGenerated: (code: string, prompt: string, imageData: string | null) => void;
+  onCodeGenerated: (code: string, prompt: string, imageData: string | null, mode: '2D' | '3D') => void;
   currentModel?: { code: string; name: string } | null;
 }
 
 function ChatInterface({ onCodeGenerated, currentModel }: ChatInterfaceProps): JSX.Element {
   const [input, setInput] = useState<string>('');
+  const [mode, setMode] = useState<'2D' | '3D'>('3D');
+  const [image, setImage] = useState<string | null>(null);
   const { t } = useLanguage();
 
   const { messages, loading, loadingPhase, handleSubmit, retry } = useAIChat({
     apiKey: import.meta.env.VITE_GEMINI_API_KEY,
     currentModel,
-    onCodeGenerated
+    onCodeGenerated,
+    initialMode: mode
   });
 
   const handleQuickPrompt = (prompt: string): void => {
     setInput(prompt);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -29,8 +43,10 @@ function ChatInterface({ onCodeGenerated, currentModel }: ChatInterfaceProps): J
 
     const userPrompt = input;
     setInput('');
+    const imageData = image;
+    setImage(null);
 
-    await handleSubmit(userPrompt, null);
+    await handleSubmit(userPrompt, imageData, mode);
   };
 
   const handleRetry = (): void => {
@@ -118,7 +134,43 @@ function ChatInterface({ onCodeGenerated, currentModel }: ChatInterfaceProps): J
       </div>
 
       {/* Input */}
-      <form onSubmit={onSubmit} className="p-4 border-t border-[var(--border-color)]">
+      <form onSubmit={onSubmit} className="p-4 border-t border-[var(--border-color)] space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="flex bg-[var(--bg-tertiary)] rounded-lg p-1 border border-[var(--border-color)]">
+            <button
+              type="button"
+              onClick={() => setMode('3D')}
+              className={`px-3 py-1 text-xs rounded-md transition-all ${mode === '3D' ? 'bg-[var(--accent)] text-[var(--bg-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+              3D (Replicad)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('2D')}
+              className={`px-3 py-1 text-xs rounded-md transition-all ${mode === '2D' ? 'bg-[var(--accent)] text-[var(--bg-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+            >
+              2D (Makerjs)
+            </button>
+          </div>
+
+          <label className="cursor-pointer p-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] transition-colors">
+            <Icons.Image className="w-5 h-5 text-[var(--text-secondary)]" />
+            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+          </label>
+
+          {image && (
+            <div className="relative group">
+              <img src={image} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-[var(--accent)]" />
+              <button
+                onClick={() => setImage(null)}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <Icons.Close className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="relative flex items-center gap-2">
           <input
             type="text"

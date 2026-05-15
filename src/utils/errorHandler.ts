@@ -6,7 +6,7 @@ export interface ErrorResult {
   isRetryable: boolean;
 }
 
-export interface JSCADErrorResult {
+export interface CADErrorResult {
   title: string;
   message: string;
   suggestion: string;
@@ -14,9 +14,9 @@ export interface JSCADErrorResult {
 }
 
 /**
- * Format JSCAD code execution errors with user-friendly messages
+ * Format CAD code execution errors with user-friendly messages
  */
-export const formatJSCADError = (error: string): JSCADErrorResult => {
+export const formatCADError = (error: string): CADErrorResult => {
   const errorLower = error.toLowerCase();
 
   // Syntax errors
@@ -33,8 +33,8 @@ export const formatJSCADError = (error: string): JSCADErrorResult => {
   if (errorLower.includes('referenceerror') || errorLower.includes('is not defined')) {
     return {
       title: 'Function Not Available',
-      message: 'The code uses a function or variable that does not exist in JSCAD.',
-      suggestion: 'Request a simpler shape using basic primitives (cube, cylinder, sphere).',
+      message: 'The code uses a function or variable that does not exist in the CAD environment.',
+      suggestion: 'Request a simpler shape using basic primitives (box, cylinder, sphere).',
       isRetryable: true,
     };
   }

@@ -49,11 +49,13 @@ export const parseActionResponse = (response: string, defaultPrompt: string): AI
   const actionMatch = response.match(/ACTION:\s*(CREATE|MODIFY|ADJUST)/i);
   const objectMatch = response.match(/OBJECT:\s*(.+?)(?:\n|$)/i);
   const searchMatch = response.match(/SEARCH:\s*(.+?)(?:\n|$)/i);
+  const modeMatch = response.match(/MODE:\s*(2D|3D)/i);
 
   return {
     actionType: actionMatch ? actionMatch[1].toUpperCase() as 'CREATE' | 'MODIFY' | 'ADJUST' : 'CREATE',
     objectName: objectMatch ? objectMatch[1].trim() : 'object',
-    searchQuery: searchMatch ? searchMatch[1].trim() : defaultPrompt
+    searchQuery: searchMatch ? searchMatch[1].trim() : defaultPrompt,
+    suggestedMode: modeMatch ? modeMatch[1].toUpperCase() as '2D' | '3D' : undefined
   };
 };
 
@@ -83,7 +85,7 @@ USER REQUEST: "${userPrompt}"
 ${hasExistingCode ? 'CONTEXT: User has an existing 3D model loaded' : 'CONTEXT: No model currently loaded'}
 
 Determine if this is:
-- CREATE: Creating a new 3D model from scratch (keywords: créer, nouveau, new, create, make)
+- CREATE: Creating a new model from scratch (keywords: créer, nouveau, new, create, make)
 - MODIFY: Modifying structure of existing model (keywords: modifier, changer, ajouter, add, change, transform)
 - ADJUST: Adjusting parameters only (keywords: ajuster, augmenter, réduire, increase, decrease, resize)
 
@@ -91,6 +93,7 @@ Respond in this format:
 ACTION: [CREATE/MODIFY/ADJUST]
 OBJECT: [object name]
 SEARCH: [search query for technical specifications]
+MODE: [2D/3D] (Determine if the user wants a 3D part or a 2D drawing/sketch)
 
 Examples:
 - "créer une vis M6" → ACTION: CREATE | OBJECT: Screw M6 | SEARCH: M6 screw dimensions ISO DIN
@@ -102,18 +105,39 @@ Analyze: "${userPrompt}"`;
 };
 
 /**
- * Build code generation prompt - MINIMAL COMMENTS VERSION
+ * Build code generation prompt
  */
 export const buildCodePrompt = (
   userPrompt: string,
   specifications: string | null,
   existingCode: string | null,
-  hasImage: boolean = false
+  hasImage: boolean = false,
+  mode: '2D' | '3D' = '3D'
 ): string => {
   const isModification = existingCode !== null;
 
+  if (mode === '2D') {
+    return `Generate MAKERJS code for a 2D drawing: "${userPrompt}"
+${specifications ? `SPECS: ${specifications}\n` : ''}
+${isModification ? `EXISTING CODE: \n${existingCode}\n` : ''}
+
+RULES:
+1. Use makerjs library.
+2. Return ONLY JavaScript code starting with "const main = () => {"
+3. The main function MUST return a makerjs model.
+4. Use millimeters.
+
+Example:
+const main = () => {
+  const circle = new makerjs.models.Ring(10, 15);
+  return circle;
+};
+
+Return ONLY the code.`;
+  }
+
   if (isModification) {
-    return `GENERATE JSCAD code to modify: "${userPrompt}"
+    return `GENERATE code to modify: "${userPrompt}" in ${mode} mode.
 
 EXISTING CODE:
 \`\`\`javascript
@@ -121,105 +145,65 @@ ${existingCode}
 \`\`\`
 
 RULES:
-- Apply modifications
+- Apply modifications using ${mode === '3D' ? 'replicad' : 'makerjs'}
 - Keep structure
-- NO comments except for parameters
-- Return ONLY JavaScript code
+- Return ONLY JavaScript code starting with "const main = () => {"
+- The main function MUST return a valid ${mode === '3D' ? 'shape' : 'model'}.
 
 Return ONLY the complete JavaScript code. No markdown, no explanations.`;
   }
 
   if (hasImage) {
-    return `ANALYZE image and GENERATE JSCAD code for: "${userPrompt}"
+    return `ANALYZE image and GENERATE ${mode} code for: "${userPrompt}"
 
 RULES:
-1. [ANALYSIS] First, analyze the image in detail:
-   - Identify the main shape and its components.
-   - Estimate relative dimensions (assume standard sizes if unknown, e.g., M6 screw).
-   - Determine necessary primitives (cuboid, cylinder, sphere) and boolean operations.
-2. [REFLECTION] Plan the implementation step-by-step.
-3. [CODE] Generate the JSCAD code.
+1. [ANALYSIS] First, analyze the image in detail.
+2. [REFLECTION] Plan the implementation using ${mode === '3D' ? 'replicad' : 'makerjs'}.
+3. [CODE] Generate the JavaScript code.
 
 FORMAT:
 You MUST use the following format:
 
 // --- ANALYSIS ---
 // [Write your analysis and thought process here]
-// [Explain dimensions and geometric approach]
 
 // --- CODE START ---
 const main = () => {
-  // Your code here
-  // ...
+  // Your code here using ${mode === '3D' ? 'replicad' : 'makerjs'}
 };
 
 CRITICAL:
 - The code MUST be after "// --- CODE START ---"
-- MUST include main() function that returns geometry
-- Use primitives, booleans, transforms from @jscad/modeling
 - Return ONLY the formatted text with Analysis and Code.`;
   }
 
-  return `Generate JSCAD code for: "${userPrompt}"
-
+  if (mode === '3D') {
+    return `Generate REPLICAD code for: "${userPrompt}"
 ${specifications ? `SPECS: ${specifications}\n` : ''}
 
-AVAILABLE:
-- primitives: cuboid, cylinder, sphere, roundedCuboid, roundedCylinder
-- booleans: union, subtract, intersect
-- transforms: translate, rotate, scale
+AVAILABLE in 'replicad':
+- makeBox(w, h, d), makeCylinder(r, h), makeSphere(r), makeTorus(r1, r2)
+- draw().rect(w, h).extrude(d)
+- fuse(s1, s2), cut(s1, s2), common(s1, s2)
+- shape.translate([x, y, z]), shape.rotate(angle, [axis]), shape.scale(factor)
 
-EXAMPLES:
-
-Cube:
+EXAMPLE:
 const main = () => {
-  const size = 20;
-  return primitives.cuboid({ size: [size, size, size] });
-};
-
-Cylinder:
-const main = () => {
-  const radius = 10;
-  const height = 30;
-  return primitives.cylinder({ radius, height, segments: 32 });
-};
-
-Sphere:
-const main = () => {
-  const radius = 15;
-  return primitives.sphere({ radius, segments: 32 });
-};
-
-Box with rounded corners:
-const main = () => {
-  const width = 50;
-  const depth = 30;
-  const height = 20;
-  const roundRadius = 2;
-  return primitives.roundedCuboid({ size: [width, depth, height], roundRadius, segments: 16 });
-};
-
-Simple screw:
-const main = () => {
-  const shaftRadius = 3;
-  const shaftHeight = 30;
-  const headRadius = 5;
-  const headHeight = 4;
-  
-  const shaft = primitives.cylinder({ radius: shaftRadius, height: shaftHeight, segments: 32 });
-  const head = primitives.cylinder({ radius: headRadius, height: headHeight, segments: 32 });
-  const headTranslated = transforms.translate([0, 0, shaftHeight], head);
-  
-  return booleans.union(shaft, headTranslated);
+  const { makeBox, fuse } = replicad;
+  const box1 = makeBox(20, 20, 20);
+  const box2 = makeBox(10, 10, 40).translate([0, 0, -10]);
+  return fuse(box1, box2);
 };
 
 RULES:
-- Return ONLY code (no markdown, no backticks)
+- Return ONLY code
 - Start with: const main = () => {
 - End with: };
-- main() MUST return a geometry
 - Use millimeters
-- Keep it simple
+- Use the 'replicad' object.
 
 Generate code for: "${userPrompt}"`;
+  }
+
+  return `Generate code for: "${userPrompt}"`;
 };

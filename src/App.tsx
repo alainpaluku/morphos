@@ -46,7 +46,32 @@ function App(): JSX.Element {
   // Memoize callbacks to prevent infinite recompilation loop
   const handleSTLGenerated = useCallback((data: ArrayBuffer) => {
     setStlData(data);
-  }, []);
+    if (currentModel && currentProject) {
+      // We should ideally update the current model in the project with this data
+      // but stlData is often large, might want to check storage limits
+    }
+  }, [currentModel, currentProject]);
+
+  const handleSTEPGenerated = useCallback((data: ArrayBuffer) => {
+    if (currentModel && currentProject) {
+      const updatedModel = { ...currentModel, stepData: data };
+      setCurrentModel(updatedModel);
+    }
+  }, [currentModel, currentProject]);
+
+  const handleSVGGenerated = useCallback((data: string) => {
+    if (currentModel && currentProject) {
+      const updatedModel = { ...currentModel, svgData: data };
+      setCurrentModel(updatedModel);
+    }
+  }, [currentModel, currentProject]);
+
+  const handleDXFGenerated = useCallback((data: string) => {
+    if (currentModel && currentProject) {
+      const updatedModel = { ...currentModel, dxfData: data };
+      setCurrentModel(updatedModel);
+    }
+  }, [currentModel, currentProject]);
 
   const handleGeometryGenerated = useCallback((geom: THREE.BufferGeometry) => {
     setGeometry(geom);
@@ -144,11 +169,11 @@ function App(): JSX.Element {
     setCurrentModel(model);
   }, []);
 
-  const handleCodeGenerated = useCallback((code: string, prompt: string, imageData: string | null = null): void => {
+  const handleCodeGenerated = useCallback((code: string, prompt: string, imageData: string | null = null, mode: '2D' | '3D' = '3D'): void => {
     // Store generation context for potential correction
     setGenerationContext({ prompt, imageData });
 
-    console.log('[App] Code generated, storing context:', { prompt: prompt.substring(0, 50), hasImage: !!imageData });
+    console.log('[App] Code generated, storing context:', { prompt: prompt.substring(0, 50), hasImage: !!imageData, mode });
 
     // Detect material from prompt
     const detectedMaterial = MaterialService.applyMaterialFromPrompt(prompt);
@@ -157,7 +182,11 @@ function App(): JSX.Element {
       name: generateModelName(prompt),
       code,
       prompt,
+      mode,
       stlData: null,
+      stepData: null,
+      svgData: null,
+      dxfData: null,
       material: detectedMaterial
     };
 
@@ -270,8 +299,13 @@ function App(): JSX.Element {
           {currentModel ? (
             <ThreeViewport
               scadCode={currentModel.code}
+              mode={currentModel.mode}
+              currentModel={currentModel}
               material={currentModel.material}
               onSTLGenerated={handleSTLGenerated}
+              onSTEPGenerated={handleSTEPGenerated}
+              onSVGGenerated={handleSVGGenerated}
+              onDXFGenerated={handleDXFGenerated}
               onGeometryGenerated={handleGeometryGenerated}
               onError={handleViewportError}
               onCompiling={handleCompiling}
