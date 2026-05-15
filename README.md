@@ -24,7 +24,7 @@
 
 ## Overview
 
-MORPHOS is a web-based parametric 3D modeling application that uses Google's Gemini AI to generate JSCAD code from natural language descriptions. Create complex 3D models simply by describing what you want.
+MORPHOS is a web-based parametric CAD modeling application that uses Google's Gemini AI to generate high-quality Replicad (3D) and Makerjs (2D) code from natural language descriptions. Create complex parts for 3D printing or CNC simply by describing what you want or uploading a sketch.
 
 ---
 
@@ -32,13 +32,12 @@ MORPHOS is a web-based parametric 3D modeling application that uses Google's Gem
 
 | Feature | Description |
 |---------|-------------|
-| **AI Generation** | Generate 3D models using natural language (French/English) |
-| **Real-time Preview** | Interactive 3D viewport with Three.js rendering |
+| **AI Generation** | Generate 3D (Replicad) and 2D (Makerjs) models using natural language (French/English) |
+| **Image-to-CAD** | Upload an image or sketch to guide the AI generation |
+| **Real-time Preview** | Interactive 3D viewport with Three.js rendering and 2D overlay |
 | **Parametric Editing** | Adjust model parameters with sliders and controls |
-| **Material Library** | PBR materials (metals, plastics, glass, wood) |
-| **Multi-format Export** | STL, OBJ, 3MF, G-code for 3D printing |
+| **CNC Ready Export** | STEP, STL, OBJ for 3D; SVG, DXF for 2D CNC/Laser cutting |
 | **Theme Support** | Dark and Light mode |
-| **PWA Ready** | Installable as a progressive web app |
 
 ---
 
@@ -62,14 +61,14 @@ Open http://localhost:5174 in your browser.
 
 ## Configuration
 
-Create a `.env` file in the root directory:
+To use the AI generation features, you need a Google Gemini API key.
 
-```env
-# Gemini API Configuration
-VITE_GEMINI_API_KEY=your_gemini_api_key
-```
-
-Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
+1. **Get your API key** from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2. **Local Development**: Create a `.env` file in the root directory:
+   ```env
+   VITE_GEMINI_API_KEY=your_gemini_api_key
+   ```
+3. **Cloudflare Deployment**: Add `VITE_GEMINI_API_KEY` to your environment variables in the Cloudflare Pages dashboard.
 
 **Model Used:** Gemini 2.5 Flash (free, high performance)
 
@@ -81,7 +80,7 @@ Get your API key from [Google AI Studio](https://makersuite.google.com/app/apike
 |----------|------------|
 | Frontend | React 18, TypeScript 5 |
 | 3D Engine | Three.js |
-| CAD Library | @jscad/modeling |
+| CAD Libraries | Replicad (@replicad/core), Makerjs |
 | AI | Google Gemini API |
 | Build Tool | Vite |
 | Styling | Tailwind CSS |
