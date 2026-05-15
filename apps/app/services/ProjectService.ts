@@ -1,5 +1,5 @@
 // Project Service - Handles project management logic
-import { Project, Model } from '../types';
+import { Project, Model, AppMode } from '../types';
 
 export class ProjectService {
   private readonly storageKey = 'morphos_projects';
@@ -19,11 +19,12 @@ export class ProjectService {
     return this.getAllProjects().find(p => p.id === id.toString());
   }
 
-  createProject(name: string, description: string = ''): Project {
+  createProject(name: string, description: string = '', mode: AppMode = '3D'): Project {
     const newProject: Project = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name,
       description,
+      mode,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       models: []
@@ -33,6 +34,17 @@ export class ProjectService {
     projects.unshift(newProject);
     this.saveProjects(projects);
     return newProject;
+  }
+
+  saveProject(project: Project): void {
+      const projects = this.getAllProjects();
+      const index = projects.findIndex(p => p.id === project.id);
+      if (index >= 0) {
+          projects[index] = { ...project, updatedAt: new Date().toISOString() };
+      } else {
+          projects.unshift(project);
+      }
+      this.saveProjects(projects);
   }
 
   updateProject(id: string | number, updates: Partial<Project>): Project | null {
@@ -82,6 +94,43 @@ export class ProjectService {
 
   private saveProjects(projects: Project[]): void {
     localStorage.setItem(this.storageKey, JSON.stringify(projects));
+  }
+
+  /**
+   * Import functions
+   */
+  async importFile(file: File): Promise<Partial<Model>> {
+    const name = file.name;
+    const extension = name.split('.').pop()?.toLowerCase();
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      if (extension === 'stl') {
+        reader.onload = (e) => {
+            resolve({
+                name,
+                mode: '3D',
+                stlData: e.target?.result as ArrayBuffer,
+                code: `// Imported STL: ${name}\nconst main = () => { return null; };`
+            });
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (extension === 'svg' || extension === 'dxf') {
+        reader.onload = (e) => {
+            resolve({
+                name,
+                mode: '2D',
+                svgData: extension === 'svg' ? e.target?.result as string : undefined,
+                dxfData: extension === 'dxf' ? e.target?.result as string : undefined,
+                code: `// Imported ${extension.toUpperCase()}: ${name}\nconst main = () => { return null; };`
+            });
+        };
+        reader.readAsText(file);
+      } else {
+        reject(new Error('Unsupported file format for import'));
+      }
+    });
   }
 }
 

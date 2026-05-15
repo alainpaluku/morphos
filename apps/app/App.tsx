@@ -1,6 +1,9 @@
-import { createSignal, createMemo, onMount, Show } from 'solid-js';
+import { createSignal, createMemo, onMount, Show, For } from 'solid-js';
 import { BabylonViewport } from './components/BabylonViewport';
 import { ChatInterface } from './components/ChatInterface';
+import { Sidebar } from './components/ui/Sidebar';
+import { Header } from './components/ui/Header';
+import { Button } from './components/ui/Button';
 import ProjectService from './services/ProjectService';
 import { CADService } from './services/CADService';
 import ExportService from './services/ExportService';
@@ -11,27 +14,33 @@ function App() {
   const [currentProject, setCurrentProject] = createSignal<Project | null>(null);
   const [currentModel, setCurrentModel] = createSignal<Model | null>(null);
   const [isCompiling, setIsCompiling] = createSignal(false);
-  const [isExporting, setIsExporting] = createSignal(false);
   const [messages, setMessages] = createSignal<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = createSignal(false);
   const [isSidebarOpen, setIsSidebarOpen] = createSignal(true);
   const [isChatOpen, setIsChatOpen] = createSignal(false);
+  const [showExportMenu, setShowExportMenu] = createSignal(false);
+  const [appMode, setAppMode] = createSignal<AppMode>('3D');
 
   let cadService: CADService | null = null;
+  let fileInput: HTMLInputElement | undefined;
 
   onMount(() => {
     const loaded = ProjectService.getAllProjects();
     if (loaded.length === 0) {
-      const def = ProjectService.createProject('Default Project');
+      const def = ProjectService.createProject('Default Project', '', '3D');
       setProjects([def]);
       setCurrentProject(def);
     } else {
       setProjects(loaded);
       setCurrentProject(loaded[0]);
-      if (loaded[0].models.length > 0) setCurrentModel(loaded[0].models[0]);
+      if (loaded[0].models.length > 0) {
+          setCurrentModel(loaded[0].models[0]);
+          setAppMode(loaded[0].mode);
+      } else {
+          setAppMode(loaded[0].mode);
+      }
     }
 
-    // Try to get API key from localStorage or env
     const apiKey = localStorage.getItem('MORPHOS_API_KEY') || import.meta.env.VITE_GEMINI_API_KEY;
     if (apiKey) {
       try {
@@ -48,6 +57,22 @@ function App() {
       }]);
     }
   });
+
+  const saveToProject = (updatedModel: Model) => {
+    const project = currentProject();
+    if (project) {
+      const updatedProject = { ...project };
+      const modelIndex = updatedProject.models.findIndex(m => m.id === updatedModel.id);
+      if (modelIndex >= 0) {
+        updatedProject.models[modelIndex] = updatedModel;
+      } else {
+        updatedProject.models.unshift(updatedModel);
+      }
+      ProjectService.saveProject(updatedProject);
+      setCurrentProject(updatedProject);
+      setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    }
+  };
 
   const handleSendMessage = async (text: string, image?: string) => {
     if (!cadService) {
@@ -75,14 +100,9 @@ function App() {
     setIsChatLoading(true);
 
     try {
-      // 1. Analyze request
       const analysis = await cadService.analyzeRequest(text, image, currentModel()?.code);
-      const mode = analysis.suggestedMode || currentModel()?.mode || '3D';
-
-      // 2. Search specs if needed
+      const mode = analysis.suggestedMode || appMode();
       const specs = cadService.getSpecifications(analysis.searchQuery);
-
-      // 3. Generate code
       const code = await cadService.generateCode(
         text,
         specs,
@@ -91,7 +111,6 @@ function App() {
         mode
       );
 
-      // 4. Update model
       const updatedModel: Model = {
         id: currentModel()?.id || Date.now().toString(),
         name: analysis.objectName || 'New Model',
@@ -102,19 +121,8 @@ function App() {
       };
 
       setCurrentModel(updatedModel);
-
-      // Update project
-      if (currentProject()) {
-        const updatedProject = { ...currentProject()! };
-        const modelIndex = updatedProject.models.findIndex(m => m.id === updatedModel.id);
-        if (modelIndex >= 0) {
-          updatedProject.models[modelIndex] = updatedModel;
-        } else {
-          updatedProject.models.push(updatedModel);
-        }
-        ProjectService.saveProject(updatedProject);
-        setCurrentProject(updatedProject);
-      }
+      setAppMode(mode);
+      saveToProject(updatedModel);
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -146,169 +154,168 @@ function App() {
             dxfData: data.dxf || currentModel()?.dxfData,
         };
         setCurrentModel(updated);
-        // Save to project
-        if (currentProject()) {
-             const proj = { ...currentProject()! };
-             const idx = proj.models.findIndex(m => m.id === updated.id);
-             if (idx >= 0) {
-                 proj.models[idx] = updated;
-                 ProjectService.saveProject(proj);
-             }
-        }
+        saveToProject(updated);
     }
   };
 
-  const handleExport = () => {
+  const handleExport = (formatId: string) => {
       const model = currentModel();
       if (!model) return;
 
-      const formats = ExportService.getAvailableFormats(model.mode);
-      const format = formats[0]; // Default to first available
+      switch (formatId) {
+          case 'stl': model.stlData ? ExportService.exportSTL(model.stlData, model.name) : alert('STL not ready'); break;
+          case 'step': model.stepData ? ExportService.exportSTEP(model.stepData, model.name) : alert('STEP not ready'); break;
+          case 'svg': model.svgData ? ExportService.exportSVG(model.svgData, model.name) : alert('SVG not ready'); break;
+          case 'dxf': model.dxfData ? ExportService.exportDXF(model.dxfData, model.name) : alert('DXF not ready'); break;
+          case 'obj': model.stlData ? ExportService.exportOBJ(model.stlData, model.name) : alert('Model not ready'); break;
+          case 'gcode': ExportService.exportGCODE(model.name); break;
+          case 'code': ExportService.exportCode(model.code, model.name, model.mode); break;
+      }
+      setShowExportMenu(false);
+  };
 
-      if (model.mode === '3D') {
-          if (model.stlData) {
-              ExportService.exportSTL(model.stlData, model.name);
-          } else {
-              alert('Model still processing, please wait.');
-          }
-      } else {
-          if (model.svgData) {
-              ExportService.exportSVG(model.svgData, model.name);
-          } else {
-              alert('Model still processing, please wait.');
+  const handleImport = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+          try {
+              const importedData = await ProjectService.importFile(file);
+              const newModel: Model = {
+                  id: Date.now().toString(),
+                  name: importedData.name || 'Imported',
+                  code: importedData.code || '',
+                  prompt: 'Imported file',
+                  mode: importedData.mode as AppMode,
+                  stlData: importedData.stlData,
+                  svgData: importedData.svgData,
+                  dxfData: importedData.dxfData,
+                  createdAt: new Date().toISOString()
+              };
+              setCurrentModel(newModel);
+              setAppMode(newModel.mode);
+              saveToProject(newModel);
+          } catch (err: any) {
+              alert(err.message);
           }
       }
   };
 
   return (
     <div class="h-screen flex bg-[#111827] text-white overflow-hidden font-sans">
-      {/* Sidebar */}
-      <Show when={isSidebarOpen()}>
-        <aside class="w-72 bg-[#1f2937] border-r border-gray-800 flex flex-col z-30 shadow-2xl">
-            <div class="p-6 border-b border-gray-800 flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-black tracking-tighter text-blue-500">MORPHOS</h1>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">SolidJS + BabylonJS</p>
-            </div>
-            <button onClick={() => setIsSidebarOpen(false)} class="text-gray-500 hover:text-white">◀</button>
-            </div>
+      <Sidebar
+        projects={projects()}
+        currentProject={currentProject()}
+        isOpen={isSidebarOpen()}
+        onClose={() => setIsSidebarOpen(false)}
+        onNewProject={() => {
+            const name = prompt('Project Name:');
+            if (name) {
+                const p = ProjectService.createProject(name, '', appMode());
+                setProjects(prev => [p, ...prev]);
+                setCurrentProject(p);
+                setCurrentModel(null);
+            }
+        }}
+        onSelectProject={(p) => {
+            setCurrentProject(p);
+            setCurrentModel(p.models[0] || null);
+            setAppMode(p.mode);
+        }}
+      />
 
-            <div class="p-4">
-            <button
-                onClick={() => {
-                    const name = prompt('Project Name:');
-                    if (name) {
-                        const p = ProjectService.createProject(name);
-                        setProjects(prev => [...prev, p]);
-                        setCurrentProject(p);
-                        setCurrentModel(null);
-                    }
-                }}
-                class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
-            >
-                <span>+</span> New Project
-            </button>
-            </div>
-
-            <nav class="flex-1 overflow-y-auto px-4 space-y-2">
-            <h3 class="text-[10px] font-bold text-gray-500 uppercase px-2 mb-2">Your Projects</h3>
-            <For each={projects()}>
-                {(p) => (
-                <div
-                    onClick={() => {
-                        setCurrentProject(p);
-                        setCurrentModel(p.models[0] || null);
-                    }}
-                    class={`group p-3 rounded-xl cursor-pointer transition-all border ${currentProject()?.id === p.id ? 'bg-gray-800 border-gray-700 shadow-sm' : 'border-transparent hover:bg-gray-800/50'}`}
-                >
-                    <div class="font-semibold text-sm">{p.name}</div>
-                    <div class="text-[10px] text-gray-500">{p.models.length} models</div>
-                </div>
-                )}
-            </For>
-            </nav>
-
-            <div class="p-4 border-t border-gray-800 bg-gray-900/50">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold">U</div>
-                <div class="flex-1 min-w-0">
-                <div class="text-sm font-bold truncate">User</div>
-                <div class="text-[10px] text-green-500 font-bold">Pro Plan</div>
-                </div>
-            </div>
-            </div>
-        </aside>
-      </Show>
-
-      {/* Main Content */}
       <main class="flex-1 flex flex-col relative bg-[#0b0f1a]">
-        <header class="h-16 bg-[#1f2937]/50 backdrop-blur-md border-b border-gray-800 px-6 flex items-center justify-between z-20">
-          <div class="flex items-center gap-4">
-            <Show when={!isSidebarOpen()}>
-                <button onClick={() => setIsSidebarOpen(true)} class="text-gray-400 hover:text-white">☰</button>
-            </Show>
-            <div class="h-8 w-[1px] bg-gray-700 mx-2"></div>
-            <div>
-              <h2 class="text-sm font-bold text-gray-200">{currentProject()?.name}</h2>
-              <p class="text-[10px] text-gray-500 font-medium">{currentModel()?.name || 'No model active'}</p>
-            </div>
-          </div>
+        <Header
+          isSidebarOpen={isSidebarOpen()}
+          onToggleSidebar={() => setIsSidebarOpen(true)}
+          projectName={currentProject()?.name}
+          modelName={currentModel()?.name}
+          isCompiling={isCompiling()}
+          onExport={() => setShowExportMenu(!showExportMenu())}
+          onShowCode={() => alert('Code Editor coming soon!')}
+        >
+            <div class="flex items-center gap-2 ml-6">
+                <div class="flex bg-gray-900/50 rounded-xl p-1 border border-gray-700/50">
+                    <button
+                        onClick={() => setAppMode('2D')}
+                        class={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${appMode() === '2D' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                    >2D</button>
+                    <button
+                        onClick={() => setAppMode('3D')}
+                        class={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all ${appMode() === '3D' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}
+                    >3D</button>
+                </div>
 
-          <div class="flex items-center gap-3">
-            {isCompiling() && (
-              <div class="flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full">
-                <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping"></div>
-                <span class="text-[10px] font-bold text-yellow-500 uppercase tracking-tighter">Compiling CAD</span>
-              </div>
-            )}
-            <button class="px-5 py-2 bg-[#1f2937] hover:bg-gray-700 border border-gray-700 text-xs font-bold rounded-lg transition-all">Code</button>
-            <button
-                onClick={handleExport}
-                class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-blue-900/20"
-            >
-                Export Design
-            </button>
-          </div>
-        </header>
+                <div class="h-6 w-[1px] bg-gray-800 mx-1"></div>
+
+                <input type="file" ref={fileInput} onChange={handleImport} class="hidden" accept=".stl,.svg,.dxf" />
+                <Button onClick={() => fileInput?.click()} variant="ghost" size="sm" class="text-[10px] uppercase tracking-widest border border-gray-800">
+                   Import CNC/3D
+                </Button>
+            </div>
+        </Header>
+
+        <Show when={showExportMenu()}>
+            <div class="absolute top-20 right-6 w-72 bg-[#1f2937] border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div class="p-4 bg-gray-800/50 border-b border-gray-700 text-[10px] font-black text-gray-500 uppercase tracking-widest">Available Formats</div>
+                <div class="max-h-80 overflow-y-auto">
+                    <For each={ExportService.getAvailableFormats(appMode())}>
+                        {(format) => (
+                            <button
+                                onClick={() => handleExport(format.id)}
+                                class="w-full flex items-center gap-4 p-4 hover:bg-blue-600/10 hover:text-blue-400 group transition-all text-left"
+                            >
+                                <span class="text-2xl group-hover:scale-110 transition-transform">{format.icon}</span>
+                                <div class="flex-1">
+                                    <div class="font-bold text-sm text-gray-200 group-hover:text-blue-400">{format.name}</div>
+                                    <div class="text-[10px] text-gray-500 group-hover:text-blue-400/70">{format.description}</div>
+                                </div>
+                                <span class="text-[10px] font-bold text-gray-600 uppercase">{format.extension}</span>
+                            </button>
+                        )}
+                    </For>
+                </div>
+            </div>
+        </Show>
 
         <div class="flex-1 relative">
           {currentModel() ? (
             <BabylonViewport
               scadCode={currentModel()!.code}
-              mode={currentModel()!.mode}
+              mode={appMode()}
               onDataGenerated={handleDataGenerated}
               onCompiling={setIsCompiling}
             />
           ) : (
             <div class="h-full flex flex-col items-center justify-center text-center p-12">
-              <div class="w-24 h-24 bg-gray-800/50 rounded-3xl mb-6 flex items-center justify-center border border-gray-700">
-                 <span class="text-4xl">📐</span>
+              <div class="w-32 h-32 bg-gray-800/30 rounded-[40px] mb-8 flex items-center justify-center border border-gray-700/50 shadow-inner relative group">
+                 <div class="absolute inset-0 bg-blue-600/10 rounded-[40px] blur-2xl group-hover:bg-blue-600/20 transition-all"></div>
+                 <span class="text-6xl relative z-10 transition-transform group-hover:scale-110 duration-500">{appMode() === '3D' ? '🧊' : '📐'}</span>
               </div>
-              <h3 class="text-xl font-bold mb-2">No Model Active</h3>
-              <p class="text-gray-500 max-w-xs text-sm">Select a project from the sidebar or describe a new part to start generating.</p>
-              <button
+              <h3 class="text-2xl font-black mb-3 tracking-tight">No {appMode()} Model Active</h3>
+              <p class="text-gray-500 max-w-sm text-sm font-medium leading-relaxed">
+                Describe your {appMode() === '3D' ? 'mechanical part' : 'CNC path'} to our AI or import an existing file to get started.
+              </p>
+              <Button
                 onClick={() => setIsChatOpen(true)}
-                class="mt-8 px-8 py-3 bg-blue-600 rounded-xl font-bold text-sm hover:scale-105 transition-all"
+                class="mt-10 px-10 py-4 text-sm uppercase tracking-widest shadow-2xl shadow-blue-600/20 hover:scale-105"
               >
-                Open AI Assistant
-              </button>
+                Start Generating with AI
+              </Button>
             </div>
           )}
         </div>
 
-        {/* Floating AI Toggle */}
         <Show when={!isChatOpen()}>
             <button
                 onClick={() => setIsChatOpen(true)}
-                class="absolute bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full shadow-2xl flex items-center justify-center text-2xl hover:scale-110 transition-all z-40"
+                class="absolute bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-2xl shadow-2xl flex items-center justify-center text-3xl hover:scale-110 hover:rotate-3 transition-all z-40 active:scale-95 group"
             >
-                🤖
+                <span class="group-hover:animate-bounce">🤖</span>
+                <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[#0b0f1a] rounded-full"></div>
             </button>
         </Show>
 
-        {/* AI Chat Drawer */}
         <Show when={isChatOpen()}>
-            <div class="absolute bottom-6 right-6 w-96 h-[500px] z-50">
+            <div class="absolute bottom-8 right-8 w-[400px] h-[600px] z-50 animate-in zoom-in-95 slide-in-from-bottom-10 duration-300">
                 <ChatInterface
                     messages={messages()}
                     isLoading={isChatLoading()}
@@ -316,9 +323,11 @@ function App() {
                 />
                 <button
                     onClick={() => setIsChatOpen(false)}
-                    class="absolute top-3 right-3 text-gray-400 hover:text-white"
+                    class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
                 >
-                    _
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                    </svg>
                 </button>
             </div>
         </Show>
