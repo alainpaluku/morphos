@@ -5,8 +5,10 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
     "dev:app": "npm run dev -w apps/app",
     "dev:landing": "npm run dev -w apps/landing",
-    "build": "npm run build --workspaces"
+    "build": "npm run build --workspaces",
+    "test": "npm test --workspaces --if-present"
   }
 }
